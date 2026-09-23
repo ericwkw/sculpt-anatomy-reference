@@ -10,6 +10,7 @@ const galleryBtn = document.getElementById("gallery-btn");
 const galleryDialog = document.getElementById("gallery-dialog");
 const galleryClose = document.getElementById("gallery-close");
 const galleryGrid = document.getElementById("gallery-grid");
+const renderModeBtn = document.getElementById("render-mode-btn");
 const creditsBtn = document.getElementById("credits-btn");
 const creditsDialog = document.getElementById("credits-dialog");
 const creditsClose = document.getElementById("credits-close");
@@ -116,24 +117,64 @@ async function setModel(id) {
   setLayer(firstAvailable);
 }
 
-// The models arrive with assorted authored materials — some glossy, some with
-// colour coding — which read as wet plastic under studio light and vary between
-// layers. Rendering everything as matte clay matches the medium being sculpted
-// and keeps attention on form rather than surface.
+// Clay matches the medium being sculpted and keeps attention on form, which is
+// what most of these models are for — several arrive glossy or colour-coded and
+// read as wet plastic under a directional key. But a photogrammetry scan carries
+// real skin, and that is worth seeing, so the render mode is switchable.
 const CLAY = [0.66, 0.62, 0.58, 1];
 
-function applyClay() {
-  for (const material of viewer.model?.materials ?? []) {
+let renderMode = "clay";
+let authored = [];
+
+function captureAuthored() {
+  authored = (viewer.model?.materials ?? []).map((material) => {
     const pbr = material.pbrMetallicRoughness;
-    pbr.setBaseColorFactor(CLAY);
-    pbr.setMetallicFactor(0);
-    pbr.setRoughnessFactor(0.9);
-  }
+    return {
+      baseColorFactor: [...pbr.baseColorFactor],
+      metallicFactor: pbr.metallicFactor,
+      roughnessFactor: pbr.roughnessFactor,
+      baseColorTexture: pbr.baseColorTexture?.texture ?? null,
+    };
+  });
 }
+
+const hasTexture = () => authored.some((m) => m.baseColorTexture);
+
+function applyRenderMode() {
+  const materials = viewer.model?.materials ?? [];
+  materials.forEach((material, i) => {
+    const pbr = material.pbrMetallicRoughness;
+    const original = authored[i];
+    if (renderMode === "clay") {
+      pbr.setBaseColorFactor(CLAY);
+      pbr.setMetallicFactor(0);
+      pbr.setRoughnessFactor(0.9);
+      // baseColorFactor multiplies the texture rather than replacing it, so a
+      // textured model stays textured until the texture itself is detached.
+      if (original?.baseColorTexture) pbr.baseColorTexture.setTexture(null);
+    } else if (original) {
+      pbr.setBaseColorFactor(original.baseColorFactor);
+      pbr.setMetallicFactor(original.metallicFactor);
+      pbr.setRoughnessFactor(original.roughnessFactor);
+      if (original.baseColorTexture) pbr.baseColorTexture.setTexture(original.baseColorTexture);
+    }
+  });
+  renderModeBtn.textContent = renderMode === "clay" ? "Clay" : "Skin";
+  renderModeBtn.disabled = !hasTexture() && renderMode === "clay";
+}
+
+renderModeBtn.addEventListener("click", () => {
+  renderMode = renderMode === "clay" ? "material" : "clay";
+  applyRenderMode();
+});
 
 viewer.addEventListener("load", () => {
   noModel.hidden = true;
-  applyClay();
+  captureAuthored();
+  // A scan's own skin is the reason to load it; an untextured anatomy model has
+  // nothing to show but clay.
+  renderMode = hasTexture() ? "material" : "clay";
+  applyRenderMode();
 });
 viewer.addEventListener("error", () => showMissing(currentLayer));
 

@@ -90,10 +90,15 @@ weak fill, because model-viewer's built-in environment lights evenly from every
 direction and flattens muscle masses into a featureless blob. Edit the `LIGHTS` array
 in that script to change the setup.
 
-Models render as matte clay regardless of their authored materials (`applyClay` in
-`src/main.js`). Several arrive glossy or colour-coded, which reads as wet plastic under
-studio light; clay matches the medium and keeps attention on form. Delete that call to
-see the models as their authors shipped them.
+Most models render as matte clay: several arrive glossy or colour-coded and read as wet
+plastic under a directional key, and clay matches the medium being sculpted. A
+photogrammetry scan carries real skin though, so the topbar has a **Clay / Skin**
+toggle. It defaults to Skin for any model with a base colour texture and Clay for
+everything else, and is disabled when there is no texture to switch to.
+
+Clay mode detaches the base colour texture rather than just tinting it — `baseColorFactor`
+multiplies a texture instead of replacing it, so a textured model stays textured until
+the texture itself is removed.
 
 ## Tests
 

@@ -121,6 +121,45 @@ test.describe('credits', () => {
   });
 });
 
+test.describe('clay and skin render modes', () => {
+  const textureAttached = (page) =>
+    page.evaluate(() =>
+      document
+        .getElementById('viewer')
+        .model.materials.some((m) => m.pbrMetallicRoughness?.baseColorTexture?.texture != null)
+    );
+
+  test('an untextured model renders as clay with nothing to switch to', async ({ page }) => {
+    await stubModels(page);
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    const toggle = page.locator('#render-mode-btn');
+    await expect(toggle).toHaveText('Clay');
+    await expect(toggle).toBeDisabled();
+  });
+
+  test('a textured model shows its own surface and can be switched to clay', async ({ page }) => {
+    await stubModels(page, { textured: true });
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    const toggle = page.locator('#render-mode-btn');
+    await expect(toggle).toHaveText('Skin');
+    await expect(toggle).toBeEnabled();
+    expect(await textureAttached(page)).toBe(true);
+
+    // Clay has to detach the texture, since baseColorFactor only tints it.
+    await toggle.click();
+    await expect(toggle).toHaveText('Clay');
+    expect(await textureAttached(page)).toBe(false);
+
+    await toggle.click();
+    await expect(toggle).toHaveText('Skin');
+    expect(await textureAttached(page)).toBe(true);
+  });
+});
+
 test.describe('auto-discovery', () => {
   // A .glb dropped into public/models/ should be viewable without editing the
   // registry first, but must not reach the credits screen — it has no attribution.
@@ -245,14 +284,14 @@ test.describe('touch input', () => {
   // A third topbar button once pushed the others off-screen: the select is
   // flex:1 and its longest option label was setting a minimum width.
   test('every topbar control fits on screen', async ({ page }) => {
-    for (const id of ['model-select', 'snap-btn', 'gallery-btn', 'credits-btn']) {
+    for (const id of ['model-select', 'snap-btn', 'gallery-btn', 'render-mode-btn', 'credits-btn']) {
       const box = await page.locator(`#${id}`).boundingBox();
       expect(box.x, `${id} left edge`).toBeGreaterThanOrEqual(0);
       expect(box.x + box.width, `${id} right edge`).toBeLessThanOrEqual(390);
     }
 
     // And each button is still big enough to hit with a finger.
-    for (const id of ['snap-btn', 'gallery-btn', 'credits-btn']) {
+    for (const id of ['snap-btn', 'gallery-btn', 'render-mode-btn', 'credits-btn']) {
       const box = await page.locator(`#${id}`).boundingBox();
       expect(box.width, `${id} width`).toBeGreaterThanOrEqual(40);
     }

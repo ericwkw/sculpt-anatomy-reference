@@ -1,13 +1,16 @@
 import { makeFixtureGlb } from './fixture.mjs';
 
-let fixture;
+const fixtures = {};
 
 /**
  * Serve a stand-in .glb for every model request. Paths listed in `missing` get a
- * 404 instead, which is how the unavailable-layer states are exercised.
+ * 404 instead, which is how the unavailable-layer states are exercised, and
+ * `textured` serves a model carrying a base colour texture.
  */
-export async function stubModels(page, { missing = [] } = {}) {
-  fixture ??= await makeFixtureGlb();
+export async function stubModels(page, { missing = [], textured = false } = {}) {
+  const key = textured ? 'textured' : 'plain';
+  fixtures[key] ??= await makeFixtureGlb({ textured });
+  const fixture = fixtures[key];
   await page.route('**/models/**', async (route) => {
     const url = new URL(route.request().url());
     if (missing.some((name) => url.pathname.endsWith(name))) {

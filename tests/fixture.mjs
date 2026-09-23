@@ -5,7 +5,13 @@ import { Document, NodeIO } from '@gltf-transform/core';
  * runs on a fresh clone where public/models/ is empty (those files are licensed
  * downloads and gitignored).
  */
-export async function makeFixtureGlb() {
+// 1x1 white PNG — enough to make a model count as textured.
+const PIXEL_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64'
+);
+
+export async function makeFixtureGlb({ textured = false } = {}) {
   const SEG = 12;
   const tri = [];
   const point = (u, v) => {
@@ -26,6 +32,9 @@ export async function makeFixtureGlb() {
 
   const doc = new Document();
   const buffer = doc.createBuffer();
+
+  const material = doc.createMaterial('m').setBaseColorFactor([0.8, 0.5, 0.4, 1]);
+
   const prim = doc
     .createPrimitive()
     .setAttribute(
@@ -36,7 +45,15 @@ export async function makeFixtureGlb() {
       'NORMAL',
       doc.createAccessor().setType('VEC3').setArray(positions.slice()).setBuffer(buffer)
     )
-    .setMaterial(doc.createMaterial('m').setBaseColorFactor([0.8, 0.5, 0.4, 1]));
+    .setMaterial(material);
+
+  if (textured) {
+    const texture = doc.createTexture('skin').setImage(PIXEL_PNG).setMimeType('image/png');
+    material.setBaseColorTexture(texture);
+    // A base colour texture is only sampled if the primitive carries UVs.
+    const uv = new Float32Array((positions.length / 3) * 2);
+    prim.setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(uv).setBuffer(buffer));
+  }
   doc.createScene().addChild(doc.createNode('n').setMesh(doc.createMesh('s').addPrimitive(prim)));
 
   return Buffer.from(await new NodeIO().writeBinary(doc));
