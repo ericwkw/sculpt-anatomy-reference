@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Licensed model binaries — download per ATTRIBUTION.md
+public/models/*.glb
+public/models/raw/
+
+
+# Playwright
+test-results/
+playwright-report/

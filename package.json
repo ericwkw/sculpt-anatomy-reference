@@ -1,0 +1,25 @@
+{
+  "name": "scupting-assist",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "optimize": "node scripts/optimize-models.mjs",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.0",
+    "@gltf-transform/extensions": "^4.5.0",
+    "@gltf-transform/functions": "^4.5.0",
+    "@playwright/test": "^1.63.0",
+    "meshoptimizer": "^1.2.0",
+    "vite": "^8.3.0"
+  },
+  "dependencies": {
+    "@google/model-viewer": "^4.3.1"
+  }
+}
