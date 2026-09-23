@@ -7,6 +7,7 @@ dist/
 
 # Licensed model binaries — download per ATTRIBUTION.md
 public/models/*.glb
+public/models/manifest.json
 models-raw/
 
 
