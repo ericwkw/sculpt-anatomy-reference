@@ -121,6 +121,63 @@ test.describe('credits', () => {
   });
 });
 
+test.describe('auto-discovery', () => {
+  // A .glb dropped into public/models/ should be viewable without editing the
+  // registry first, but must not reach the credits screen — it has no attribution.
+  const stubManifest = (page, files) =>
+    page.route('**/models/manifest.json', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(files) })
+    );
+
+  test('an unregistered model appears under Unsorted', async ({ page }) => {
+    await stubModels(page);
+    await stubManifest(page, ['skull-proportions.glb', 'mystery-thing.glb']);
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await expect(page.locator('#model-select option[value="unsorted"]')).toHaveCount(1);
+    await page.locator('#model-select').selectOption('unsorted');
+    await viewerLoaded(page);
+
+    // Filename becomes a readable label.
+    await expect(page.locator('#layer-bar button')).toHaveText(['Mystery thing']);
+    expect(await page.evaluate(() => document.getElementById('viewer').src)).toContain(
+      'mystery-thing.glb'
+    );
+  });
+
+  test('discovered models stay out of the credits screen', async ({ page }) => {
+    await stubModels(page);
+    await stubManifest(page, ['mystery-thing.glb']);
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await page.locator('#credits-btn').click();
+    await expect(page.locator('#credits-dialog')).toBeVisible();
+    await expect(page.locator('#credits-dialog')).not.toContainText('Mystery');
+    await expect(page.locator('#credits-dialog')).not.toContainText('mystery-thing');
+  });
+
+  test('no Unsorted entry when every file is registered', async ({ page }) => {
+    await stubModels(page);
+    await stubManifest(page, ['skull-proportions.glb', 'skull-male.glb']);
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await expect(page.locator('#model-select option[value="unsorted"]')).toHaveCount(0);
+  });
+
+  test('a missing manifest is not fatal', async ({ page }) => {
+    await stubModels(page);
+    await page.route('**/models/manifest.json', (route) => route.fulfill({ status: 404, body: '' }));
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await expect(page.locator('#model-select option')).not.toHaveCount(0);
+    await expect(page.locator('#model-select option[value="unsorted"]')).toHaveCount(0);
+  });
+});
+
 test.describe('models that are not downloaded', () => {
   test('unavailable layers are disabled and explained', async ({ page }) => {
     // Second layer of the first model is absent; the first is present.

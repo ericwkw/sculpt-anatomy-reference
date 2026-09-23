@@ -15,8 +15,41 @@ const creditsDialog = document.getElementById("credits-dialog");
 const creditsClose = document.getElementById("credits-close");
 const creditsBody = document.getElementById("credits-body");
 
-let currentModel = MODELS[0];
+// The curated registry, plus anything found in public/models/ that is not in it.
+const models = [...MODELS];
+
+let currentModel = models[0];
 let currentLayer = currentModel?.layers[0];
+
+/**
+ * Surface .glb files sitting in public/models/ that no registry entry claims, so
+ * a file can be dropped in and looked at without editing code first. They are
+ * deliberately kept out of MODELS and so out of the credits screen — anything
+ * worth keeping gets a registry entry with its attribution.
+ */
+async function discoverUnsorted() {
+  const files = await fetch("/models/manifest.json")
+    .then((r) => (r.ok ? r.json() : []))
+    .catch(() => []);
+
+  const claimed = new Set(MODELS.flatMap((m) => m.layers.map((l) => l.src.split("/").pop())));
+  const extra = files.filter((f) => !claimed.has(f));
+  if (!extra.length) return;
+
+  models.push({
+    id: "unsorted",
+    label: "Unsorted — dropped in",
+    layers: extra.map((file) => ({
+      key: file,
+      label: file
+        .replace(/\.glb$/i, "")
+        .replace(/[-_]+/g, " ")
+        .replace(/^./, (c) => c.toUpperCase()),
+      src: `/models/${file}`,
+      credit: null,
+    })),
+  });
+}
 
 // Layers whose .glb has not been downloaded yet are shown disabled rather than
 // silently failing to load. See ATTRIBUTION.md for what each file should be.
@@ -38,7 +71,7 @@ async function checkAvailability(model) {
 }
 
 function renderModelSelect() {
-  modelSelect.innerHTML = MODELS.map(
+  modelSelect.innerHTML = models.map(
     (m) => `<option value="${m.id}">${m.label}</option>`
   ).join("");
   modelSelect.value = currentModel.id;
@@ -59,7 +92,7 @@ function renderLayerBar() {
 
 function showMissing(layer) {
   const file = layer.src.split("/").pop();
-  noModel.innerHTML = `<div><strong>${layer.label}</strong> is not downloaded yet.<br />Save it as <code>${file}</code> in <code>public/models/raw/</code>, then run <code>npm run optimize</code>.<br />See ATTRIBUTION.md for the download link.</div>`;
+  noModel.innerHTML = `<div><strong>${layer.label}</strong> is not downloaded yet.<br />Save it as <code>${file}</code> in <code>models-raw/</code>, then run <code>npm run optimize</code>.<br />See ATTRIBUTION.md for the download link.</div>`;
   noModel.hidden = false;
 }
 
@@ -76,7 +109,7 @@ function setLayer(layer) {
 }
 
 async function setModel(id) {
-  currentModel = MODELS.find((m) => m.id === id) ?? MODELS[0];
+  currentModel = models.find((m) => m.id === id) ?? models[0];
   await checkAvailability(currentModel);
   const firstAvailable =
     currentModel.layers.find((l) => available.get(l.src) !== false) ?? currentModel.layers[0];
@@ -183,6 +216,7 @@ creditsBtn.addEventListener("click", () => {
 });
 creditsClose.addEventListener("click", () => creditsDialog.close());
 
+await discoverUnsorted();
 renderModelSelect();
 setModel(currentModel.id);
 

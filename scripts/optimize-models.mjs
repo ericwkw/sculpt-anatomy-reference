@@ -205,6 +205,14 @@ async function main() {
     );
   }
 
+  // A static page cannot list a directory, so record what is there. The app reads
+  // this to surface models that are present but not in the registry.
+  const present = fs
+    .readdirSync(OUT_DIR)
+    .filter((n) => n.toLowerCase().endsWith('.glb'))
+    .sort();
+  fs.writeFileSync(new URL('manifest.json', OUT_DIR), JSON.stringify(present, null, 2));
+
   const totalAfter = rows.reduce((n, r) => n + r.afterBytes, 0);
   console.log(`\nWrote ${rows.length} file(s) to public/models/ — ${mb(totalAfter)} total.`);
 }

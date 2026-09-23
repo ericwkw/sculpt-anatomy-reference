@@ -21,6 +21,11 @@ Add to Home Screen to install it.
 A launchd agent serves the built site on port 4173 so the viewer is reachable from the
 phone without a terminal open. It starts at login and restarts if it dies.
 
+Reach it from the phone at **http://ew-macbookpro-m2.local:4173/** — the Bonjour name
+follows the machine, so the URL keeps working on any network. An IP address does not,
+which matters if you save it to the Home Screen. Vite rejects hostnames it was not told
+about, so `vite.config.js` allows `.local`.
+
 ```sh
 npm run build                                   # publish changes to the served copy
 tail -f ~/Library/Logs/sculpt-ref.log           # what the server is doing
@@ -46,7 +51,13 @@ The app ships with no 3D assets — model files are large and licensed separatel
 2. Save each as `.glb` in **`models-raw/`**, using the filename from the
    "Save as" column.
 3. Run `npm run optimize`.
-4. The dev server picks up the results on reload.
+4. Add an entry in `src/models.js` with a `credit` block.
+5. Run `npm run build` to publish it to the studio server.
+
+Step 4 is what puts a model in a named slot with its attribution. Skipping it is
+fine for a quick look — anything in `public/models/` that no registry entry claims
+shows up under **Unsorted**, labelled from its filename. Unsorted models are left out
+of the credits screen, so move anything you intend to keep into the registry.
 
 Sketchfab offers a glTF download option for most models, which unzips to `.gltf` +
 textures. To get a single `.glb`, import into Blender and export as glTF Binary.
