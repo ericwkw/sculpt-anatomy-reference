@@ -70,7 +70,8 @@ returning 404 for specific filenames.
 
 Covered: pointer reaches the viewer, horizontal and vertical drag orbit, vertical drag
 does not scroll the page, touch drag, pinch zoom, layer switching, snapshot round trip,
-disabled layers for missing files, and the layer bar staying tappable at phone size.
+disabled layers for missing files, every model carrying a visible credit, and the
+topbar and layer bar staying on screen and tappable at phone size.
 
 Not covered: real iOS Safari. Chromium's touch emulation is close but not identical —
 check gestures on the actual phone before trusting them.
@@ -91,5 +92,10 @@ check gestures on the actual phone before trusting them.
 
 ## Licences
 
-Models are CC-licensed and credited in `ATTRIBUTION.md`. CC-BY requires that credit
-stays visible, so keep that file with the project if you share it.
+Models are CC-licensed. CC-BY requires the credit to stay visible wherever the work is
+shown, so the app has a credits screen behind the ⓘ button, rendered straight from the
+`credit` field on each layer in `src/models.js`. Adding a layer without one fails the
+test suite.
+
+`ATTRIBUTION.md` mirrors the same list for anyone reading the repo. Keep both with the
+project if you share it.

@@ -77,6 +77,50 @@ test.describe('viewer interaction', () => {
   });
 });
 
+test.describe('credits', () => {
+  test.beforeEach(async ({ page }) => {
+    await stubModels(page);
+    await page.goto('/');
+    await viewerLoaded(page);
+  });
+
+  // CC-BY requires the credit to stay visible, so every source model in the
+  // registry must appear here — a layer added without one is a licence breach.
+  test('every model in the registry is credited', async ({ page }) => {
+    const expected = await page.evaluate(async () => {
+      const { listCredits } = await import('/src/models.js');
+      return listCredits();
+    });
+    expect(expected.length).toBeGreaterThan(0);
+
+    await page.locator('#credits-btn').click();
+    const dialog = page.locator('#credits-dialog');
+    await expect(dialog).toBeVisible();
+
+    for (const credit of expected) {
+      const entry = dialog.locator('li', { hasText: credit.title });
+      await expect(entry).toContainText(credit.author);
+      await expect(entry).toContainText(credit.licence);
+      await expect(entry.locator('a')).toHaveAttribute('href', credit.url);
+    }
+
+    await page.locator('#credits-close').click();
+    await expect(dialog).toBeHidden();
+  });
+
+  test('every layer carries a credit', async ({ page }) => {
+    const uncredited = await page.evaluate(async () => {
+      const { MODELS } = await import('/src/models.js');
+      return MODELS.flatMap((m) =>
+        m.layers
+          .filter((l) => !l.credit?.title || !l.credit?.author || !l.credit?.url)
+          .map((l) => `${m.id}/${l.key}`)
+      );
+    });
+    expect(uncredited).toEqual([]);
+  });
+});
+
 test.describe('models that are not downloaded', () => {
   test('unavailable layers are disabled and explained', async ({ page }) => {
     // Second layer of the first model is absent; the first is present.
@@ -118,24 +162,43 @@ test.describe('touch input', () => {
   });
 
   // touch-action must not hand vertical drags to the browser for scrolling.
+  // These poll rather than sleeping a fixed interval: model-viewer keeps
+  // interpolating the camera after the gesture ends, and under parallel load a
+  // short sleep lands before it has moved.
   test('vertical touch drag orbits the model', async ({ page }) => {
     const before = await cameraOrbit(page);
     await touchDrag(page, { x: 195, y: 560 }, { x: 195, y: 300 });
-    await page.waitForTimeout(300);
 
-    expect(await cameraOrbit(page)).not.toBe(before);
+    await expect.poll(() => cameraOrbit(page), { timeout: 5000 }).not.toBe(before);
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
   });
 
   test('pinch zooms the camera', async ({ page }) => {
-    const radius = async () =>
+    const radius = () =>
       page.evaluate(() => document.getElementById('viewer').getCameraOrbit().radius);
 
     const before = await radius();
     await pinch(page, { x: 195, y: 420 }, 80, 320);
-    await page.waitForTimeout(300);
 
-    expect(await radius()).not.toBeCloseTo(before, 3);
+    await expect
+      .poll(async () => Math.abs((await radius()) - before), { timeout: 5000 })
+      .toBeGreaterThan(0.001);
+  });
+
+  // A third topbar button once pushed the others off-screen: the select is
+  // flex:1 and its longest option label was setting a minimum width.
+  test('every topbar control fits on screen', async ({ page }) => {
+    for (const id of ['model-select', 'snap-btn', 'gallery-btn', 'credits-btn']) {
+      const box = await page.locator(`#${id}`).boundingBox();
+      expect(box.x, `${id} left edge`).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, `${id} right edge`).toBeLessThanOrEqual(390);
+    }
+
+    // And each button is still big enough to hit with a finger.
+    for (const id of ['snap-btn', 'gallery-btn', 'credits-btn']) {
+      const box = await page.locator(`#${id}`).boundingBox();
+      expect(box.width, `${id} width`).toBeGreaterThanOrEqual(40);
+    }
   });
 
   test('layer bar stays reachable above the safe area', async ({ page }) => {

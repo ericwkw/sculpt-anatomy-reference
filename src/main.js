@@ -1,4 +1,4 @@
-import { MODELS } from "./models.js";
+import { MODELS, listCredits } from "./models.js";
 import { saveSnapshot, getAllSnapshots, deleteSnapshot } from "./gallery-store.js";
 
 const viewer = document.getElementById("viewer");
@@ -10,6 +10,10 @@ const galleryBtn = document.getElementById("gallery-btn");
 const galleryDialog = document.getElementById("gallery-dialog");
 const galleryClose = document.getElementById("gallery-close");
 const galleryGrid = document.getElementById("gallery-grid");
+const creditsBtn = document.getElementById("credits-btn");
+const creditsDialog = document.getElementById("credits-dialog");
+const creditsClose = document.getElementById("credits-close");
+const creditsBody = document.getElementById("credits-body");
 
 let currentModel = MODELS[0];
 let currentLayer = currentModel?.layers[0];
@@ -137,6 +141,31 @@ galleryGrid.addEventListener("click", async (e) => {
   await deleteSnapshot(Number(del.dataset.id));
   await renderGallery();
 });
+
+function renderCredits() {
+  creditsBody.innerHTML = `
+    <p class="credits-intro">
+      Anatomy models by the artists below, used under Creative Commons licences.
+      This credit must stay visible if you share this app.
+    </p>
+    <ul class="credits-list">
+      ${listCredits()
+        .map(
+          (c) => `
+        <li>
+          <a href="${c.url}" target="_blank" rel="noopener">${c.title}</a>
+          <span class="credits-meta">${c.author} · ${c.licence}</span>
+        </li>`
+        )
+        .join("")}
+    </ul>`;
+}
+
+creditsBtn.addEventListener("click", () => {
+  renderCredits();
+  creditsDialog.showModal();
+});
+creditsClose.addEventListener("click", () => creditsDialog.close());
 
 renderModelSelect();
 setModel(currentModel.id);
