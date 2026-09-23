@@ -20,6 +20,12 @@ column. Run `npm run optimize` afterwards to decimate them for phone use.
 | [Skull Proportions & Key Landmarks](https://sketchfab.com/3d-models/20c0f43e3778481c830978709d784681) | Velicsek Artistic Anatomy | CC-BY | 39k | `skull-proportions.glb` |
 | [Human Male Skull](https://sketchfab.com/3d-models/f1eaaef50e5845c796d6834fd1b702e5) | Ruslan Gadzhiev | CC-BY | 137k | `skull-male.glb` |
 | [Human Female Skull](https://sketchfab.com/3d-models/0993a850d20d49ffb2a7add7855d2437) | Ruslan Gadzhiev | CC-BY | 137k | `skull-female.glb` |
+| [Open 3D Model — exploded view skull](https://anatomytool.org/content/open3dmodel-exploded-view-skull-english-labels) | AnatomyTool Open 3D Model | CC-BY-SA 4.0 | 192k | `skull-exploded.glb` |
+
+The exploded skull separates all 29 named bones — useful for seeing where the nasal
+bone ends, how maxilla meets zygomatic, and how the mandible hangs. Download the
+**GLB** zip from [the source files page](https://anatomytool.org/open3dmodel-create)
+and rename the `.glb` inside it.
 
 ## Head — écorché
 

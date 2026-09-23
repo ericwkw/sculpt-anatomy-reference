@@ -13,6 +13,7 @@ const sketchfab = (uid) => `https://sketchfab.com/3d-models/${uid}`;
 const zenodo = (id) => `https://zenodo.org/records/${id}`;
 
 const CC_BY = "CC BY 4.0";
+const CC_BY_SA = "CC BY-SA 4.0";
 // Non-commercial. Fine for personal studio reference, not for anything published.
 const CC_BY_NC_SA = "CC BY-NC-SA 4.0";
 const CC0 = "CC0";
@@ -53,6 +54,17 @@ export const MODELS = [
           author: "Ruslan Gadzhiev",
           licence: CC_BY,
           url: sketchfab("0993a850d20d49ffb2a7add7855d2437"),
+        },
+      },
+      {
+        key: "exploded",
+        label: "Exploded",
+        src: "/models/skull-exploded.glb",
+        credit: {
+          title: "Open 3D Model — exploded view skull",
+          author: "AnatomyTool Open 3D Model (Leiden UMC, UMC Utrecht, Maastricht UMC, KU Leuven KULAK)",
+          licence: CC_BY_SA,
+          url: "https://anatomytool.org/content/open3dmodel-exploded-view-skull-english-labels",
         },
       },
     ],
