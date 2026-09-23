@@ -33,8 +33,9 @@ It serves `dist/`, so **edits are not live** — run `npm run build` to publish 
 It binds to every interface, so anyone on the same network can reach it. That is the
 point at home; on a shared or public network, unload it.
 
-The agent hardcodes the current Node path (`~/.nvm/.../v23.9.0/bin/node`), so upgrading
-Node means editing the plist.
+The agent hardcodes absolute paths — the current Node binary (`~/.nvm/.../v23.9.0/bin/node`)
+and this project directory. Upgrading Node or moving or renaming the project breaks it
+until the plist is updated.
 
 ## Adding models
 
