@@ -1,7 +1,7 @@
 /**
  * Decimate downloaded anatomy models down to a triangle budget the phone can handle.
  *
- * Reads every .glb from public/models/raw/ and writes an optimized copy to
+ * Reads every .glb from models-raw/ and writes an optimized copy to
  * public/models/. Originals are never modified — re-run with a different budget
  * any time.
  *
@@ -29,7 +29,7 @@ const flag = (name, fallback) => {
 
 const BUDGET = flag('budget', 300_000);
 const QUANTIZE = !args.includes('--no-quantize');
-const RAW_DIR = new URL('../public/models/raw/', import.meta.url);
+const RAW_DIR = new URL('../models-raw/', import.meta.url);
 const OUT_DIR = new URL('../public/models/', import.meta.url);
 
 // Bounded at 0.2% of mesh radius. Past roughly this, anatomical landmarks start

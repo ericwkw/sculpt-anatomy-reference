@@ -7,7 +7,7 @@ dist/
 
 # Licensed model binaries — download per ATTRIBUTION.md
 public/models/*.glb
-public/models/raw/
+models-raw/
 
 
 # Playwright

@@ -5,7 +5,7 @@ requires that the author credit stays visible wherever the model is shown, so th
 file must be kept in sync with `src/models.js`.
 
 Download each from Sketchfab (free account required), then export/convert to `.glb`
-and save it under `public/models/raw/` with the filename listed in the "Save as"
+and save it under `models-raw/` with the filename listed in the "Save as"
 column. Run `npm run optimize` afterwards to decimate them for phone use.
 
 ## Skull

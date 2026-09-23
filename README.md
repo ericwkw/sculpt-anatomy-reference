@@ -16,13 +16,33 @@ npm run dev -- --host
 Open the printed Network URL on your iPhone (same WiFi). In Safari, tap Share →
 Add to Home Screen to install it.
 
+### Always-on studio server
+
+A launchd agent serves the built site on port 4173 so the viewer is reachable from the
+phone without a terminal open. It starts at login and restarts if it dies.
+
+```sh
+npm run build                                   # publish changes to the served copy
+tail -f ~/Library/Logs/sculpt-ref.log           # what the server is doing
+launchctl unload ~/Library/LaunchAgents/com.sculptref.studio.plist   # stop for good
+```
+
+It serves `dist/`, so **edits are not live** — run `npm run build` to publish them. Use
+`npm run dev` on port 5173 while actually working.
+
+It binds to every interface, so anyone on the same network can reach it. That is the
+point at home; on a shared or public network, unload it.
+
+The agent hardcodes the current Node path (`~/.nvm/.../v23.9.0/bin/node`), so upgrading
+Node means editing the plist.
+
 ## Adding models
 
 The app ships with no 3D assets — model files are large and licensed separately.
 
 1. Open `ATTRIBUTION.md` and download the models listed there from Sketchfab
    (free account required).
-2. Save each as `.glb` in **`public/models/raw/`**, using the filename from the
+2. Save each as `.glb` in **`models-raw/`**, using the filename from the
    "Save as" column.
 3. Run `npm run optimize`.
 4. The dev server picks up the results on reload.
@@ -33,7 +53,7 @@ textures. To get a single `.glb`, import into Blender and export as glTF Binary.
 ### Keeping models fast on phone
 
 Anything over roughly 300k triangles will stutter on an iPhone. `npm run optimize`
-handles this — it reads everything in `public/models/raw/`, decimates each model down
+handles this — it reads everything in `models-raw/`, decimates each model down
 to the triangle budget, and writes the result to `public/models/`. Originals are never
 touched, so you can re-run with a different budget any time.
 
@@ -86,7 +106,7 @@ check gestures on the actual phone before trusting them.
 | `scripts/optimize-models.mjs` | Decimates raw downloads to a phone-friendly budget |
 | `tests/interaction.spec.mjs` | Playwright interaction and regression tests |
 | `tests/helpers.mjs` | Model stubbing, real touch and pinch input via CDP |
-| `public/models/raw/` | Your untouched downloads (gitignored) |
+| `models-raw/` | Your untouched downloads (gitignored) |
 | `public/models/` | Optimized `.glb` files the app loads (gitignored) |
 | `ATTRIBUTION.md` | Model sources and licence credits — keep in sync |
 
