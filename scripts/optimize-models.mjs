@@ -5,7 +5,7 @@
  * public/models/. Originals are never modified — re-run with a different budget
  * any time.
  *
- *   node scripts/optimize-models.mjs [--budget 300000] [--no-quantize]
+ *   node scripts/optimize-models.mjs [--budget 600000] [--no-quantize]
  *
  * The explicit weld() below is load-bearing. simplify() does weld internally, but
  * with overwrite:false, which skips any primitive that already carries indices —
@@ -18,8 +18,16 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { weld, simplify, quantize, prune, dedup, getGLPrimitiveCount } from '@gltf-transform/functions';
+import {
+  weld,
+  simplify,
+  quantize,
+  prune,
+  dedup,
+  getGLPrimitiveCount,
+} from '@gltf-transform/functions';
 import { MeshoptSimplifier } from 'meshoptimizer';
+import draco3d from 'draco3dgltf';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -46,6 +54,63 @@ const countTriangles = (doc) =>
     .flatMap((mesh) => mesh.listPrimitives())
     .reduce((sum, prim) => sum + getGLPrimitiveCount(prim), 0);
 
+/**
+ * Average face normals into each shared vertex, in place.
+ *
+ * The built-in normals() transform unwelds first so it can write flat per-face
+ * normals, which both undoes the weld the simplifier depends on and makes an
+ * organic surface look faceted. This keeps the welded topology.
+ */
+function computeSmoothNormals(doc) {
+  for (const prim of doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())) {
+    const position = prim.getAttribute('POSITION');
+    const indices = prim.getIndices();
+    if (!position || !indices) continue;
+
+    const pos = position.getArray();
+    const idx = indices.getArray();
+    const out = new Float32Array(position.getCount() * 3);
+
+    for (let i = 0; i < idx.length; i += 3) {
+      const [a, b, c] = [idx[i] * 3, idx[i + 1] * 3, idx[i + 2] * 3];
+      const ux = pos[b] - pos[a];
+      const uy = pos[b + 1] - pos[a + 1];
+      const uz = pos[b + 2] - pos[a + 2];
+      const vx = pos[c] - pos[a];
+      const vy = pos[c + 1] - pos[a + 1];
+      const vz = pos[c + 2] - pos[a + 2];
+      // Left unnormalized so larger triangles weight the result proportionally.
+      const nx = uy * vz - uz * vy;
+      const ny = uz * vx - ux * vz;
+      const nz = ux * vy - uy * vx;
+      for (const v of [a, b, c]) {
+        out[v] += nx;
+        out[v + 1] += ny;
+        out[v + 2] += nz;
+      }
+    }
+
+    for (let i = 0; i < out.length; i += 3) {
+      const len = Math.hypot(out[i], out[i + 1], out[i + 2]) || 1;
+      out[i] /= len;
+      out[i + 1] /= len;
+      out[i + 2] /= len;
+    }
+
+    prim.setAttribute(
+      'NORMAL',
+      doc.createAccessor().setType('VEC3').setArray(out).setBuffer(doc.getRoot().listBuffers()[0])
+    );
+  }
+}
+
+const countVertices = (doc) =>
+  doc
+    .getRoot()
+    .listMeshes()
+    .flatMap((mesh) => mesh.listPrimitives())
+    .reduce((sum, prim) => sum + prim.getAttribute('POSITION').getCount(), 0);
+
 const mb = (bytes) => `${(bytes / 1e6).toFixed(1)} MB`;
 
 async function main() {
@@ -65,7 +130,11 @@ async function main() {
     return;
   }
 
-  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+  // Museum archives often ship Draco-compressed meshes; without the decoder
+  // registered, reading one fails with an opaque "DT_FLOAT32" error.
+  const io = new NodeIO()
+    .registerExtensions(ALL_EXTENSIONS)
+    .registerDependencies({ 'draco3d.decoder': await draco3d.createDecoderModule() });
   const rows = [];
 
   for (const name of files) {
@@ -73,17 +142,44 @@ async function main() {
     const outPath = new URL(name, OUT_DIR);
     const doc = await io.read(inPath.pathname);
 
+    // Drop any inherited mesh compression so the output is written plain — the
+    // quantize step below is this pipeline's size strategy, and leaving Draco in
+    // place would demand an encoder to re-compress geometry we just rewrote.
+    for (const extension of doc.getRoot().listExtensionsUsed()) {
+      if (extension.extensionName === 'KHR_draco_mesh_compression') extension.dispose();
+    }
+
     const before = countTriangles(doc);
     const beforeBytes = fs.statSync(inPath).size;
 
-    // Ratio is vertices kept, not triangles, but tracks closely enough after welding.
-    const ratio = Math.min(1, BUDGET / before);
+    await doc.transform(weld(), dedup());
 
-    const steps = [weld(), dedup()];
-    if (ratio < 1) {
-      steps.push(simplify({ simplifier: MeshoptSimplifier, ratio, error: MAX_ERROR }));
+    // weld() matches on every attribute, so a mesh carrying per-face normals —
+    // which photogrammetry output usually does — welds nothing: each triangle
+    // keeps its own three vertices and the simplifier finds no shared edges to
+    // collapse. A closed mesh should have roughly half as many vertices as
+    // triangles; anything near 3x is still unwelded. Dropping normals lets the
+    // weld match on position alone, then they are recomputed as smooth.
+    let rewelded = false;
+    if (countVertices(doc) > countTriangles(doc) * 1.5) {
+      for (const prim of doc.getRoot().listMeshes().flatMap((m) => m.listPrimitives())) {
+        prim.setAttribute('NORMAL', null);
+      }
+      await doc.transform(weld());
+      rewelded = true;
     }
-    steps.push(prune());
+
+    if (before > BUDGET) {
+      await doc.transform(
+        simplify({ simplifier: MeshoptSimplifier, ratio: BUDGET / before, error: MAX_ERROR })
+      );
+    }
+
+    // Normals were dropped to let the weld match on position; rebuild them now
+    // that the mesh is at its final triangle count.
+    if (rewelded) computeSmoothNormals(doc);
+
+    const steps = [prune()];
     // Packs positions and normals into integers. Roughly halves geometry bytes and
     // needs KHR_mesh_quantization, which model-viewer supports.
     if (QUANTIZE) steps.push(quantize({ quantizePosition: 16, quantizeNormal: 12 }));
@@ -94,7 +190,7 @@ async function main() {
     const after = countTriangles(doc);
     const afterBytes = fs.statSync(outPath).size;
 
-    rows.push({ name, before, after, beforeBytes, afterBytes, skipped: ratio >= 1 });
+    rows.push({ name, before, after, beforeBytes, afterBytes, skipped: before <= BUDGET });
   }
 
   const pad = (s, n) => String(s).padEnd(n);

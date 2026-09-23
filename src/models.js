@@ -10,8 +10,12 @@
 // Run `npm run optimize` on anything heavier.
 
 const sketchfab = (uid) => `https://sketchfab.com/3d-models/${uid}`;
+const zenodo = (id) => `https://zenodo.org/records/${id}`;
 
 const CC_BY = "CC BY 4.0";
+// Non-commercial. Fine for personal studio reference, not for anything published.
+const CC_BY_NC_SA = "CC BY-NC-SA 4.0";
+const CC0 = "CC0";
 
 export const MODELS = [
   {
@@ -144,6 +148,84 @@ export const MODELS = [
           author: "Ruslan Gadzhiev",
           licence: CC_BY,
           url: sketchfab("5f28b52cab3e439490727e0aede55a6b"),
+        },
+      },
+    ],
+  },
+  {
+    id: "ecorche-casts",
+    label: "Écorché casts — scanned",
+    layers: [
+      {
+        key: "houdon",
+        label: "Houdon figure",
+        src: "/models/houdon-ecorche.glb",
+        credit: {
+          title: "Flayed Man at The Louvre, Paris (Jean-Antoine Houdon)",
+          author: "Scan the World",
+          licence: CC_BY_NC_SA,
+          url: zenodo(21680445),
+        },
+      },
+      {
+        key: "bust",
+        label: "Écorché bust",
+        src: "/models/ecorche-bust.glb",
+        credit: {
+          title: "Ecorché Bust statue scan",
+          author: "Scan the World",
+          licence: "CC BY-NC-SA 2.0",
+          url: zenodo(10388555),
+        },
+      },
+    ],
+  },
+  {
+    id: "female-casts",
+    label: "Female figure — scanned sculpture",
+    layers: [
+      {
+        key: "capitoline",
+        label: "Capitoline Venus",
+        src: "/models/capitoline-venus.glb",
+        credit: {
+          title: "Capitoline Venus at The Louvre, Paris",
+          author: "Scan the World",
+          licence: CC_BY_NC_SA,
+          url: zenodo(21248324),
+        },
+      },
+      {
+        key: "amazon",
+        label: "Wounded Amazon",
+        src: "/models/wounded-amazon.glb",
+        credit: {
+          title: "Torso of a Wounded Amazon",
+          author: "Scan the World",
+          licence: CC_BY_NC_SA,
+          url: zenodo(21671483),
+        },
+      },
+      {
+        key: "kore",
+        label: "Kore torso",
+        src: "/models/female-torso.glb",
+        credit: {
+          title: "Female torso",
+          author: "Scan the World",
+          licence: CC_BY_NC_SA,
+          url: zenodo(20169300),
+        },
+      },
+      {
+        key: "venus-italica",
+        label: "Venus Italica",
+        src: "/models/venus-italica-bust.glb",
+        credit: {
+          title: "Venus Italica, Bust (Antonio Canova)",
+          author: "Scan the World",
+          licence: CC0,
+          url: zenodo(22010305),
         },
       },
     ],

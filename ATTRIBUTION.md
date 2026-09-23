@@ -4,6 +4,11 @@ All models below are used under Creative Commons licences. CC Attribution (CC-BY
 requires that the author credit stays visible wherever the model is shown, so this
 file must be kept in sync with `src/models.js`.
 
+> **This project is personal-use only.** Several of the scanned sculptures are
+> **NonCommercial**, which is fine for private studio reference but rules out
+> publishing, deploying publicly, or anything commercial. If that ever changes,
+> every NC model below has to come out first.
+
 Download each from Sketchfab (free account required), then export/convert to `.glb`
 and save it under `models-raw/` with the filename listed in the "Save as"
 column. Run `npm run optimize` afterwards to decimate them for phone use.
@@ -44,6 +49,26 @@ Lower poly, runs smoothly on phone without decimating.
 | [Female Body Muscular System](https://sketchfab.com/3d-models/9a596b6c24b344bfbe6bb5246290df0e) | Ruslan Gadzhiev | CC-BY | 251k | `female-lite-muscle.glb` |
 | [Female Human Skeleton](https://sketchfab.com/3d-models/5f28b52cab3e439490727e0aede55a6b) | Ruslan Gadzhiev | CC-BY | 97k | `female-lite-skeleton.glb` |
 
+## Écorché casts — scanned sculpture
+
+Photogrammetry of real museum objects by [Scan the World](https://www.myminifactory.com/scantheworld/),
+archived on Zenodo. Downloads are `.glb` already — no Blender step. Take the
+`_normalized.glb` file from each record for full resolution.
+
+| Model | Author | Licence | Tris | Save as |
+|---|---|---|---|---|
+| [Flayed Man at The Louvre (Houdon)](https://zenodo.org/records/21680445) | Scan the World | CC-BY-**NC**-SA 4.0 | 307k | `houdon-ecorche.glb` |
+| [Ecorché Bust statue scan](https://zenodo.org/records/10388555) | Scan the World | CC-BY-**NC**-SA 2.0 | 100k | `ecorche-bust.glb` |
+
+## Female figure — scanned sculpture
+
+| Model | Author | Licence | Tris | Save as |
+|---|---|---|---|---|
+| [Capitoline Venus at The Louvre](https://zenodo.org/records/21248324) | Scan the World | CC-BY-**NC**-SA 4.0 | 400k | `capitoline-venus.glb` |
+| [Torso of a Wounded Amazon](https://zenodo.org/records/21671483) | Scan the World | CC-BY-**NC**-SA 4.0 | 990k | `wounded-amazon.glb` |
+| [Female torso (kore)](https://zenodo.org/records/20169300) | Scan the World | CC-BY-**NC**-SA 4.0 | 655k | `female-torso.glb` |
+| [Venus Italica, Bust (Canova)](https://zenodo.org/records/22010305) | Scan the World | **CC0** | 2.0M | `venus-italica-bust.glb` |
+
 ## Other candidates
 
 Not wired into the app, but worth a look:
@@ -59,8 +84,10 @@ Not wired into the app, but worth a look:
 
 ## Licence notes
 
+- **CC0** — public domain, no conditions at all.
 - **CC-BY** — free to use anywhere, including commercially, as long as the author is credited.
-- **CC-BY-NC** — personal studio reference only. Do not use in anything you sell.
+- **CC-BY-NC / CC-BY-NC-SA** — personal studio reference only. Do not use in anything you
+  sell, publish, or deploy publicly. Most of the scanned sculptures are in this category.
 - Avoid **ND** (NoDerivatives) models here: decimating or converting them counts as a
   derivative, which the licence forbids.
 
