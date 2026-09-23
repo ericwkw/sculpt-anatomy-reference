@@ -55,6 +55,28 @@ Lower poly, runs smoothly on phone without decimating.
 | [Female Body Muscular System](https://sketchfab.com/3d-models/9a596b6c24b344bfbe6bb5246290df0e) | Ruslan Gadzhiev | CC-BY | 251k | `female-lite-muscle.glb` |
 | [Female Human Skeleton](https://sketchfab.com/3d-models/5f28b52cab3e439490727e0aede55a6b) | Ruslan Gadzhiev | CC-BY | 97k | `female-lite-skeleton.glb` |
 
+## Head — photogrammetry scan
+
+A real person, not a sculpted interpretation. The geometry is only ~25k triangles —
+the realism is in the albedo and normal maps, not the mesh.
+
+| Model | Author | Licence | Tris | Save as |
+|---|---|---|---|---|
+| [Free HD Female Head Scan](https://www.3dscanstore.com/blog/Free-3D-Head-Model) | 3D Scan Store / Ten24 | **Personal use only** | 25k | `head-scan-female.obj` |
+
+The download is a 2 GB zip, mostly a ZBrush file and 8K TGA maps that this project does
+not need. Take these three files from it and put them in `models-raw/`:
+
+- `OBJ/Head.obj` → rename to `head-scan-female.obj`
+- `Textures/JPG/Face/Face_Albedo.jpg`
+- `Textures/JPG/Face/Face_Normal.jpg`
+
+The archive ships no `.mtl` even though the OBJ references one, so `models-raw/Head.mtl`
+is written by hand here to point at those two maps. Keep it.
+
+Eyeballs, teeth, tongue, brows and lashes are separate meshes in the archive and are not
+included, which is why the eyes read blank.
+
 ## Écorché casts — scanned sculpture
 
 Photogrammetry of real museum objects by [Scan the World](https://www.myminifactory.com/scantheworld/),

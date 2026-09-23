@@ -109,6 +109,23 @@ export const MODELS = [
     ],
   },
   {
+    id: "head-scan",
+    label: "Head — photogrammetry scan",
+    layers: [
+      {
+        key: "skin",
+        label: "Skin",
+        src: "/models/head-scan-female.glb",
+        credit: {
+          title: "Free HD Female Head Scan",
+          author: "3D Scan Store / Ten24",
+          licence: "Personal use only",
+          url: "https://www.3dscanstore.com/blog/Free-3D-Head-Model",
+        },
+      },
+    ],
+  },
+  {
     id: "female-body",
     label: "Female body — CheRa (matched layers)",
     layers: [

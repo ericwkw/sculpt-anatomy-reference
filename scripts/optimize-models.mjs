@@ -213,9 +213,15 @@ async function main() {
       );
     }
 
-    // Normals were dropped to let the weld match on position; rebuild them now
-    // that the mesh is at its final triangle count.
-    if (rewelded) computeSmoothNormals(doc);
+    // Rebuild normals either because they were dropped to let the weld match on
+    // position, or because the source never had any — ZBrush OBJ exports often
+    // omit them, and without normals the surface renders flat-shaded.
+    const missingNormals = doc
+      .getRoot()
+      .listMeshes()
+      .flatMap((m) => m.listPrimitives())
+      .some((p) => !p.getAttribute('NORMAL'));
+    if (rewelded || missingNormals) computeSmoothNormals(doc);
 
     await resizeTextures(doc, MAX_TEXTURE);
 
