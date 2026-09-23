@@ -1,11 +1,11 @@
 /**
  * Decimate downloaded anatomy models down to a triangle budget the phone can handle.
  *
- * Reads every .glb from models-raw/ and writes an optimized copy to
+ * Reads every .glb and .obj from models-raw/ and writes an optimized .glb to
  * public/models/. Originals are never modified — re-run with a different budget
  * any time.
  *
- *   node scripts/optimize-models.mjs [--budget 600000] [--no-quantize]
+ *   node scripts/optimize-models.mjs [--budget 600000] [--max-texture 2048] [--no-quantize]
  *
  * The explicit weld() below is load-bearing. simplify() does weld internally, but
  * with overwrite:false, which skips any primitive that already carries indices —
@@ -28,6 +28,8 @@ import {
 } from '@gltf-transform/functions';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import draco3d from 'draco3dgltf';
+import obj2gltf from 'obj2gltf';
+import sharp from 'sharp';
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -40,6 +42,8 @@ const flag = (name, fallback) => {
 // fibre direction survives and matches the original by eye.
 const BUDGET = flag('budget', 600_000);
 const QUANTIZE = !args.includes('--no-quantize');
+// Scan vendors ship 8K maps; 2K is already more than a phone screen resolves.
+const MAX_TEXTURE = flag('max-texture', 2048);
 const RAW_DIR = new URL('../models-raw/', import.meta.url);
 const OUT_DIR = new URL('../public/models/', import.meta.url);
 
@@ -104,6 +108,30 @@ function computeSmoothNormals(doc) {
   }
 }
 
+/**
+ * Shrink textures to something a phone should hold.
+ *
+ * Scan vendors ship 8K albedo and normal maps, which is more resolution than a
+ * model orbiting on a handset can show and would make one layer heavier than
+ * every other model combined.
+ */
+async function resizeTextures(doc, maxSize) {
+  for (const texture of doc.getRoot().listTextures()) {
+    const image = texture.getImage();
+    if (!image) continue;
+
+    const pipeline = sharp(Buffer.from(image));
+    const { width = 0, height = 0 } = await pipeline.metadata();
+    if (Math.max(width, height) <= maxSize) continue;
+
+    const resized = await sharp(Buffer.from(image))
+      .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+    texture.setImage(resized).setMimeType('image/jpeg');
+  }
+}
+
 const countVertices = (doc) =>
   doc
     .getRoot()
@@ -123,9 +151,13 @@ async function main() {
     return;
   }
 
-  const files = fs.readdirSync(RAW_DIR).filter((n) => n.toLowerCase().endsWith('.glb'));
+  // .obj covers both scan-vendor downloads and Apple Object Capture output.
+  const files = fs
+    .readdirSync(RAW_DIR)
+    .filter((n) => /\.(glb|obj)$/i.test(n))
+    .sort();
   if (!files.length) {
-    console.log(`No .glb files in ${path.relative(process.cwd(), RAW_DIR.pathname)}`);
+    console.log(`No .glb or .obj files in ${path.relative(process.cwd(), RAW_DIR.pathname)}`);
     console.log('See ATTRIBUTION.md for what to download and what to name each file.');
     return;
   }
@@ -139,8 +171,14 @@ async function main() {
 
   for (const name of files) {
     const inPath = new URL(name, RAW_DIR);
-    const outPath = new URL(name, OUT_DIR);
-    const doc = await io.read(inPath.pathname);
+    const outName = name.replace(/\.obj$/i, '.glb');
+    const outPath = new URL(outName, OUT_DIR);
+
+    const doc = /\.obj$/i.test(name)
+      ? await io.readBinary(
+          new Uint8Array(await obj2gltf(inPath.pathname, { binary: true, unlit: false }))
+        )
+      : await io.read(inPath.pathname);
 
     // Drop any inherited mesh compression so the output is written plain — the
     // quantize step below is this pipeline's size strategy, and leaving Draco in
@@ -179,6 +217,8 @@ async function main() {
     // that the mesh is at its final triangle count.
     if (rewelded) computeSmoothNormals(doc);
 
+    await resizeTextures(doc, MAX_TEXTURE);
+
     const steps = [prune()];
     // Packs positions and normals into integers. Roughly halves geometry bytes and
     // needs KHR_mesh_quantization, which model-viewer supports.
@@ -190,7 +230,7 @@ async function main() {
     const after = countTriangles(doc);
     const afterBytes = fs.statSync(outPath).size;
 
-    rows.push({ name, before, after, beforeBytes, afterBytes, skipped: before <= BUDGET });
+    rows.push({ name: outName, before, after, beforeBytes, afterBytes, skipped: before <= BUDGET });
   }
 
   const pad = (s, n) => String(s).padEnd(n);

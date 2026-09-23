@@ -59,8 +59,13 @@ fine for a quick look — anything in `public/models/` that no registry entry cl
 shows up under **Unsorted**, labelled from its filename. Unsorted models are left out
 of the credits screen, so move anything you intend to keep into the registry.
 
+Both `.glb` and `.obj` are accepted. An OBJ is converted on the way through, picking up
+its `.mtl` and texture files from the same folder — which covers scan-vendor downloads
+and Apple Object Capture output without a Blender round trip.
+
 Sketchfab offers a glTF download option for most models, which unzips to `.gltf` +
-textures. To get a single `.glb`, import into Blender and export as glTF Binary.
+textures. That form is not read directly; import it into Blender and export as glTF
+Binary, or take the OBJ if one is offered.
 
 ### Keeping models fast on phone
 
@@ -70,10 +75,16 @@ to the triangle budget, and writes the result to `public/models/`. Originals are
 touched, so you can re-run with a different budget any time.
 
 ```sh
-npm run optimize                  # default 600k triangle budget
+npm run optimize                     # 600k triangles, 2K textures
 npm run optimize -- --budget 150000
-npm run optimize -- --no-quantize # if a model looks wrong after optimizing
+npm run optimize -- --max-texture 4096
+npm run optimize -- --no-quantize    # if a model looks wrong after optimizing
 ```
+
+Textures are capped at 2048px and re-encoded as JPEG. Scan vendors ship 8K maps, which
+is more than a phone resolves and would make one model heavier than all the others put
+together. A texture that is a single flat colour gets collapsed into a material factor
+and disappears from the file, which is intended.
 
 It prints a before/after table of triangle counts and file sizes. Models already under
 budget are passed through and marked as such.

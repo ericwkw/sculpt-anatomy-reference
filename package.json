@@ -18,6 +18,8 @@
     "@playwright/test": "^1.63.0",
     "draco3dgltf": "^1.5.7",
     "meshoptimizer": "^1.2.0",
+    "obj2gltf": "^3.2.0",
+    "sharp": "^0.35.4",
     "vite": "^8.3.0"
   },
   "dependencies": {
