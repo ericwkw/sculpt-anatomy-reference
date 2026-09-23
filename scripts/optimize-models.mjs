@@ -27,7 +27,10 @@ const flag = (name, fallback) => {
   return i === -1 ? fallback : Number(args[i + 1]);
 };
 
-const BUDGET = flag('budget', 300_000);
+// 300k smoothed muscle fibre striations into mush on the dense écorché heads —
+// visible at working distance, which is the distance that matters. At 600k the
+// fibre direction survives and matches the original by eye.
+const BUDGET = flag('budget', 600_000);
 const QUANTIZE = !args.includes('--no-quantize');
 const RAW_DIR = new URL('../models-raw/', import.meta.url);
 const OUT_DIR = new URL('../public/models/', import.meta.url);
@@ -83,7 +86,7 @@ async function main() {
     steps.push(prune());
     // Packs positions and normals into integers. Roughly halves geometry bytes and
     // needs KHR_mesh_quantization, which model-viewer supports.
-    if (QUANTIZE) steps.push(quantize({ quantizeNormal: 12 }));
+    if (QUANTIZE) steps.push(quantize({ quantizePosition: 16, quantizeNormal: 12 }));
 
     await doc.transform(...steps);
 

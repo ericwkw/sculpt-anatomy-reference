@@ -83,8 +83,24 @@ async function setModel(id) {
   setLayer(firstAvailable);
 }
 
+// The models arrive with assorted authored materials — some glossy, some with
+// colour coding — which read as wet plastic under studio light and vary between
+// layers. Rendering everything as matte clay matches the medium being sculpted
+// and keeps attention on form rather than surface.
+const CLAY = [0.66, 0.62, 0.58, 1];
+
+function applyClay() {
+  for (const material of viewer.model?.materials ?? []) {
+    const pbr = material.pbrMetallicRoughness;
+    pbr.setBaseColorFactor(CLAY);
+    pbr.setMetallicFactor(0);
+    pbr.setRoughnessFactor(0.9);
+  }
+}
+
 viewer.addEventListener("load", () => {
   noModel.hidden = true;
+  applyClay();
 });
 viewer.addEventListener("error", () => showMissing(currentLayer));
 

@@ -52,13 +52,13 @@ textures. To get a single `.glb`, import into Blender and export as glTF Binary.
 
 ### Keeping models fast on phone
 
-Anything over roughly 300k triangles will stutter on an iPhone. `npm run optimize`
+Anything much over 600k triangles risks stuttering on an iPhone. `npm run optimize`
 handles this — it reads everything in `models-raw/`, decimates each model down
 to the triangle budget, and writes the result to `public/models/`. Originals are never
 touched, so you can re-run with a different budget any time.
 
 ```sh
-npm run optimize                  # default 300k triangle budget
+npm run optimize                  # default 600k triangle budget
 npm run optimize -- --budget 150000
 npm run optimize -- --no-quantize # if a model looks wrong after optimizing
 ```
@@ -69,6 +69,19 @@ budget are passed through and marked as such.
 Geometric error is capped at 0.2% of each model's radius, so anatomical landmarks stay
 where they belong. Quantization packs positions and normals into integers for a further
 size cut; it needs `KHR_mesh_quantization`, which `model-viewer` supports.
+
+## Lighting
+
+`public/studio.hdr` is generated, not downloaded — `node scripts/make-studio-hdr.mjs`
+rewrites it. It is a small equirectangular HDR holding one dominant raking key with
+weak fill, because model-viewer's built-in environment lights evenly from every
+direction and flattens muscle masses into a featureless blob. Edit the `LIGHTS` array
+in that script to change the setup.
+
+Models render as matte clay regardless of their authored materials (`applyClay` in
+`src/main.js`). Several arrive glossy or colour-coded, which reads as wet plastic under
+studio light; clay matches the medium and keeps attention on form. Delete that call to
+see the models as their authors shipped them.
 
 ## Tests
 
@@ -104,6 +117,7 @@ check gestures on the actual phone before trusting them.
 | `src/main.js` | Viewer wiring, layer switching, snapshot capture |
 | `src/gallery-store.js` | IndexedDB storage for saved snapshots |
 | `scripts/optimize-models.mjs` | Decimates raw downloads to a phone-friendly budget |
+| `scripts/make-studio-hdr.mjs` | Generates the studio lighting environment |
 | `tests/interaction.spec.mjs` | Playwright interaction and regression tests |
 | `tests/helpers.mjs` | Model stubbing, real touch and pinch input via CDP |
 | `models-raw/` | Your untouched downloads (gitignored) |
