@@ -57,6 +57,13 @@ html, body {
   color: #fff;
 }
 
+/* model-viewer parks its AR button bottom-right, on top of the rightmost layer
+   button. Lift it clear of both bottom bars. */
+model-viewer::part(default-ar-button) {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 116px);
+  right: 12px;
+}
+
 model-viewer {
   width: 100%;
   height: 100%;
@@ -81,15 +88,19 @@ model-viewer {
   line-height: 1.5;
 }
 
+/* Falls back to horizontal scrolling on very narrow phones; the fade on the
+   right edge is the only hint that more switches exist. */
 .part-bar {
   position: fixed;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
   bottom: calc(env(safe-area-inset-bottom, 0px) + 68px);
   left: 0;
   right: 0;
   z-index: 10;
   display: flex;
   justify-content: flex-start;
-  gap: 6px;
+  gap: 5px;
   padding: 0 12px 6px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -100,7 +111,7 @@ model-viewer {
 
 .part-bar button {
   flex: none;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 14px;
   border: none;
   background: rgba(255,255,255,.08);

@@ -369,6 +369,34 @@ test.describe('touch input', () => {
     }
   });
 
+  // model-viewer parks its AR button bottom-right, where it covered the last
+  // layer button — "Exploded" on the skull was unreachable on a phone.
+  test('the AR button does not cover the bottom bars', async ({ page }) => {
+    const boxes = await page.evaluate(() => {
+      const viewer = document.getElementById('viewer');
+      const ar = viewer.shadowRoot.querySelector('[part="default-ar-button"]');
+      const rect = (el) => {
+        const r = el.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, left: r.left, right: r.right };
+      };
+      return {
+        ar: ar ? rect(ar) : null,
+        layerBar: rect(document.getElementById('layer-bar')),
+      };
+    });
+
+    // Headless Chromium reports no AR support, so the button is present but has
+    // zero size. Skipping is honest: an overlap check against a zero-height rect
+    // is trivially false, which is how this test first "passed" against the very
+    // bug it exists to catch. The placement is verified by hand in a real browser.
+    const rendered = boxes.ar && boxes.ar.bottom - boxes.ar.top > 0;
+    test.skip(!rendered, 'AR button is not rendered in this browser');
+
+    const overlaps =
+      boxes.ar.top < boxes.layerBar.bottom && boxes.ar.bottom > boxes.layerBar.top;
+    expect(overlaps, 'AR button overlaps the layer bar').toBe(false);
+  });
+
   test('layer bar stays reachable above the safe area', async ({ page }) => {
     const bar = await page.locator('#layer-bar').boundingBox();
     expect(bar.y + bar.height).toBeLessThanOrEqual(844);

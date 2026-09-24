@@ -154,13 +154,18 @@ const hasTexture = () => authored.some((m) => m.baseColorTexture);
  */
 const hidden = new Set();
 
-const PART_LABELS = {
-  "Realtime Eyeball Left": "Eye L",
-  "Realtime Eyeball Right": "Eye R",
-  "Eye Wet": "Eye gloss",
+// Eight separate switches overflow a phone's width, pushing the two worth using
+// most — brows and lashes are 248k of the head scan's 302k triangles — off the
+// right edge. The eye parts are never wanted individually, so they share one.
+const PART_GROUPS = {
+  "Realtime Eyeball Left": "Eyes",
+  "Realtime Eyeball Right": "Eyes",
+  "Eye Wet": "Eyes",
 };
 
-const partNames = () => [...new Set(authored.map((m) => m.name).filter(Boolean))];
+const groupOf = (name) => PART_GROUPS[name] ?? name;
+
+const partGroups = () => [...new Set(authored.map((m) => m.name).filter(Boolean).map(groupOf))];
 
 function applyPartVisibility() {
   (viewer.model?.materials ?? []).forEach((material, i) => {
@@ -168,7 +173,7 @@ function applyPartVisibility() {
     if (!name) return;
     const pbr = material.pbrMetallicRoughness;
     const colour = [...pbr.baseColorFactor];
-    if (hidden.has(name)) {
+    if (hidden.has(groupOf(name))) {
       material.setAlphaMode("BLEND");
       colour[3] = 0;
     } else {
@@ -180,18 +185,18 @@ function applyPartVisibility() {
 }
 
 function renderPartBar() {
-  const names = partNames();
+  const groups = partGroups();
   // One part is the whole model — nothing to switch.
-  if (names.length < 2) {
+  if (groups.length < 2) {
     partBar.innerHTML = "";
     partBar.hidden = true;
     return;
   }
   partBar.hidden = false;
-  partBar.innerHTML = names
+  partBar.innerHTML = groups
     .map(
       (name) =>
-        `<button data-part="${name}" class="${hidden.has(name) ? "" : "on"}">${PART_LABELS[name] ?? name}</button>`
+        `<button data-part="${name}" class="${hidden.has(name) ? "" : "on"}">${name}</button>`
     )
     .join("");
 }
