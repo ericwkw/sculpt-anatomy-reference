@@ -62,20 +62,28 @@ the realism is in the albedo and normal maps, not the mesh.
 
 | Model | Author | Licence | Tris | Save as |
 |---|---|---|---|---|
-| [Free HD Female Head Scan](https://www.3dscanstore.com/blog/Free-3D-Head-Model) | 3D Scan Store / Ten24 | **Personal use only** | 25k | `head-scan-female.obj` |
+| [Free HD Female Head Scan](https://www.3dscanstore.com/blog/Free-3D-Head-Model) | 3D Scan Store / Ten24 | **Personal use only** | 31k | `head-scan-female.glb` |
 
 The download is a 2 GB zip, mostly a ZBrush file and 8K TGA maps that this project does
-not need. Take these three files from it and put them in `models-raw/`:
+not need. Take these into `models-raw/head-scan/`:
 
-- `OBJ/Head.obj` → rename to `head-scan-female.obj`
-- `Textures/JPG/Face/Face_Albedo.jpg`
-- `Textures/JPG/Face/Face_Normal.jpg`
+- `OBJ/Head.obj`
+- `OBJ/Realtime Eyeball Left.obj` and `Realtime Eyeball Right.obj`
+- `Textures/JPG/Face/Face_Albedo.jpg` and `Face_Normal.jpg`
+- `Textures/JPG/Eyes/Eyes_Balls_Diffuse.jpg`
 
-The archive ships no `.mtl` even though the OBJ references one, so `models-raw/Head.mtl`
-is written by hand here to point at those two maps. Keep it.
+The archive ships no `.mtl` files even though every OBJ references one, so the three in
+`models-raw/head-scan/` are written by hand. Keep them.
 
-Eyeballs, teeth, tongue, brows and lashes are separate meshes in the archive and are not
-included, which is why the eyes read blank.
+The head and both eyeballs are separate meshes, so they are merged into one file before
+the optimizer runs:
+
+```sh
+node scripts/merge-obj.mjs models-raw/head-scan-female.glb models-raw/head-scan/*.obj
+```
+
+Teeth, tongue, brows and lashes are also in the archive and are left out — hair
+reconstructs badly and is noise for sculpting reference.
 
 ## Écorché casts — scanned sculpture
 

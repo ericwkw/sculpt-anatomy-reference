@@ -59,6 +59,10 @@ fine for a quick look — anything in `public/models/` that no registry entry cl
 shows up under **Unsorted**, labelled from its filename. Unsorted models are left out
 of the credits screen, so move anything you intend to keep into the registry.
 
+A scan that arrives as several meshes — head, eyeballs, teeth — is combined first with
+`scripts/merge-obj.mjs`, since otherwise each part would appear as its own model. Keep
+the parts in a subfolder of `models-raw/`; the optimizer only reads the top level.
+
 Both `.glb` and `.obj` are accepted. An OBJ is converted on the way through, picking up
 its `.mtl` and texture files from the same folder — which covers scan-vendor downloads
 and Apple Object Capture output without a Blender round trip.
@@ -146,6 +150,7 @@ check gestures on the actual phone before trusting them.
 | `src/gallery-store.js` | IndexedDB storage for saved snapshots |
 | `scripts/optimize-models.mjs` | Decimates raw downloads to a phone-friendly budget |
 | `scripts/make-studio-hdr.mjs` | Generates the studio lighting environment |
+| `scripts/merge-obj.mjs` | Combines multi-part OBJ scans into one `.glb` |
 | `tests/interaction.spec.mjs` | Playwright interaction and regression tests |
 | `tests/helpers.mjs` | Model stubbing, real touch and pinch input via CDP |
 | `models-raw/` | Your untouched downloads (gitignored) |
