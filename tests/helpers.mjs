@@ -7,9 +7,9 @@ const fixtures = {};
  * 404 instead, which is how the unavailable-layer states are exercised, and
  * `textured` serves a model carrying a base colour texture.
  */
-export async function stubModels(page, { missing = [], textured = false } = {}) {
-  const key = textured ? 'textured' : 'plain';
-  fixtures[key] ??= await makeFixtureGlb({ textured });
+export async function stubModels(page, { missing = [], textured = false, parts = [] } = {}) {
+  const key = `${textured ? 'textured' : 'plain'}:${parts.join('+')}`;
+  fixtures[key] ??= await makeFixtureGlb({ textured, parts });
   const fixture = fixtures[key];
   await page.route('**/models/**', async (route) => {
     const url = new URL(route.request().url());

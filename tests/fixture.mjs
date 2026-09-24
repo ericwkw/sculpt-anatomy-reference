@@ -11,7 +11,7 @@ const PIXEL_PNG = Buffer.from(
   'base64'
 );
 
-export async function makeFixtureGlb({ textured = false } = {}) {
+export async function makeFixtureGlb({ textured = false, parts = [] } = {}) {
   const SEG = 12;
   const tri = [];
   const point = (u, v) => {
@@ -54,7 +54,19 @@ export async function makeFixtureGlb({ textured = false } = {}) {
     const uv = new Float32Array((positions.length / 3) * 2);
     prim.setAttribute('TEXCOORD_0', doc.createAccessor().setType('VEC2').setArray(uv).setBuffer(buffer));
   }
-  doc.createScene().addChild(doc.createNode('n').setMesh(doc.createMesh('s').addPrimitive(prim)));
+  const scene = doc.createScene();
+  scene.addChild(doc.createNode('n').setMesh(doc.createMesh(parts[0] ?? 's').addPrimitive(prim)));
+  if (parts.length) material.setName(parts[0]);
+
+  // Extra named parts, so per-part visibility switches have something to switch.
+  for (const name of parts.slice(1)) {
+    const extra = doc
+      .createPrimitive()
+      .setAttribute('POSITION', doc.createAccessor().setType('VEC3').setArray(positions.slice()).setBuffer(buffer))
+      .setAttribute('NORMAL', doc.createAccessor().setType('VEC3').setArray(positions.slice()).setBuffer(buffer))
+      .setMaterial(doc.createMaterial(name).setBaseColorFactor([0.5, 0.5, 0.5, 1]));
+    scene.addChild(doc.createNode(name).setMesh(doc.createMesh(name).addPrimitive(extra)));
+  }
 
   return Buffer.from(await new NodeIO().writeBinary(doc));
 }

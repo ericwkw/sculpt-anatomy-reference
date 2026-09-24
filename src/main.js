@@ -5,6 +5,7 @@ const viewer = document.getElementById("viewer");
 const noModel = document.getElementById("no-model");
 const modelSelect = document.getElementById("model-select");
 const layerBar = document.getElementById("layer-bar");
+const partBar = document.getElementById("part-bar");
 const snapBtn = document.getElementById("snap-btn");
 const galleryBtn = document.getElementById("gallery-btn");
 const galleryDialog = document.getElementById("gallery-dialog");
@@ -134,11 +135,76 @@ function captureAuthored() {
       metallicFactor: pbr.metallicFactor,
       roughnessFactor: pbr.roughnessFactor,
       baseColorTexture: pbr.baseColorTexture?.texture ?? null,
+      alphaMode: material.alphaMode,
+      name: material.name,
     };
   });
 }
 
 const hasTexture = () => authored.some((m) => m.baseColorTexture);
+
+/**
+ * Per-part visibility, for merged scans.
+ *
+ * A scan arrives as separate meshes — head, eyeballs, teeth, brows — merged into
+ * one file so the model picker stays sensible. model-viewer exposes materials
+ * but not nodes, so a part is hidden by turning its material transparent; the
+ * merge step names each part's material after its source file to make that
+ * possible. A model whose materials are all unnamed simply gets no switches.
+ */
+const hidden = new Set();
+
+const PART_LABELS = {
+  "Realtime Eyeball Left": "Eye L",
+  "Realtime Eyeball Right": "Eye R",
+  "Eye Wet": "Eye gloss",
+};
+
+const partNames = () => [...new Set(authored.map((m) => m.name).filter(Boolean))];
+
+function applyPartVisibility() {
+  (viewer.model?.materials ?? []).forEach((material, i) => {
+    const name = authored[i]?.name;
+    if (!name) return;
+    const pbr = material.pbrMetallicRoughness;
+    const colour = [...pbr.baseColorFactor];
+    if (hidden.has(name)) {
+      material.setAlphaMode("BLEND");
+      colour[3] = 0;
+    } else {
+      material.setAlphaMode(authored[i].alphaMode);
+      colour[3] = authored[i].baseColorFactor[3];
+    }
+    pbr.setBaseColorFactor(colour);
+  });
+}
+
+function renderPartBar() {
+  const names = partNames();
+  // One part is the whole model — nothing to switch.
+  if (names.length < 2) {
+    partBar.innerHTML = "";
+    partBar.hidden = true;
+    return;
+  }
+  partBar.hidden = false;
+  partBar.innerHTML = names
+    .map(
+      (name) =>
+        `<button data-part="${name}" class="${hidden.has(name) ? "" : "on"}">${PART_LABELS[name] ?? name}</button>`
+    )
+    .join("");
+}
+
+partBar.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-part]");
+  if (!btn) return;
+  const name = btn.dataset.part;
+  if (hidden.has(name)) hidden.delete(name);
+  else hidden.add(name);
+  applyPartVisibility();
+  renderPartBar();
+});
 
 function applyRenderMode() {
   const materials = viewer.model?.materials ?? [];
@@ -161,6 +227,9 @@ function applyRenderMode() {
   });
   renderModeBtn.textContent = renderMode === "clay" ? "Clay" : "Skin";
   renderModeBtn.disabled = !hasTexture() && renderMode === "clay";
+  // Both modes rewrite baseColorFactor, which carries the alpha that hides a
+  // part, so visibility has to be reasserted afterwards.
+  applyPartVisibility();
 }
 
 renderModeBtn.addEventListener("click", () => {
@@ -175,6 +244,10 @@ viewer.addEventListener("load", () => {
   // nothing to show but clay.
   renderMode = hasTexture() ? "material" : "clay";
   applyRenderMode();
+  // Visibility choices are per model, not carried between them.
+  hidden.clear();
+  renderPartBar();
+  applyPartVisibility();
 });
 viewer.addEventListener("error", () => showMissing(currentLayer));
 

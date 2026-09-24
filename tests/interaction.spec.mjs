@@ -160,6 +160,78 @@ test.describe('clay and skin render modes', () => {
   });
 });
 
+test.describe('part visibility', () => {
+  const alphaOf = (page, name) =>
+    page.evaluate(
+      (n) =>
+        document.getElementById('viewer').model.materials.find((m) => m.name === n)
+          .pbrMetallicRoughness.baseColorFactor[3],
+      name
+    );
+
+  test('a single-part model shows no switches', async ({ page }) => {
+    await stubModels(page);
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await expect(page.locator('#part-bar')).toBeHidden();
+  });
+
+  test('a merged model switches each part off and back on', async ({ page }) => {
+    await stubModels(page, { parts: ['Head', 'Teeth', 'Brows'] });
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    const bar = page.locator('#part-bar');
+    await expect(bar).toBeVisible();
+    await expect(bar.locator('button')).toHaveText(['Head', 'Teeth', 'Brows']);
+
+    const teeth = bar.locator('button[data-part="Teeth"]');
+    await expect(teeth).toHaveClass(/on/);
+    expect(await alphaOf(page, 'Teeth')).toBe(1);
+
+    await teeth.click();
+    await expect(teeth).not.toHaveClass(/on/);
+    expect(await alphaOf(page, 'Teeth')).toBe(0);
+    // Hiding one part must not disturb another.
+    expect(await alphaOf(page, 'Head')).toBe(1);
+
+    await teeth.click();
+    await expect(teeth).toHaveClass(/on/);
+    expect(await alphaOf(page, 'Teeth')).toBe(1);
+  });
+
+  test('switching render mode keeps parts hidden', async ({ page }) => {
+    await stubModels(page, { textured: true, parts: ['Head', 'Teeth'] });
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await page.locator('#part-bar button[data-part="Teeth"]').click();
+    expect(await alphaOf(page, 'Teeth')).toBe(0);
+
+    // Both render modes rewrite baseColorFactor, which carries that alpha.
+    await page.locator('#render-mode-btn').click();
+    expect(await alphaOf(page, 'Teeth')).toBe(0);
+    await page.locator('#render-mode-btn').click();
+    expect(await alphaOf(page, 'Teeth')).toBe(0);
+  });
+
+  test('visibility resets when a different model loads', async ({ page }) => {
+    await stubModels(page, { parts: ['Head', 'Teeth'] });
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    await page.locator('#part-bar button[data-part="Teeth"]').click();
+    expect(await alphaOf(page, 'Teeth')).toBe(0);
+
+    await page.locator('#layer-bar button').nth(1).click();
+    await viewerLoaded(page);
+
+    await expect(page.locator('#part-bar button[data-part="Teeth"]')).toHaveClass(/on/);
+    expect(await alphaOf(page, 'Teeth')).toBe(1);
+  });
+});
+
 test.describe('auto-discovery', () => {
   // A .glb dropped into public/models/ should be viewable without editing the
   // registry first, but must not reach the credits screen — it has no attribution.

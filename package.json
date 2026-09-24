@@ -17,6 +17,7 @@
     "@gltf-transform/functions": "^4.5.0",
     "@playwright/test": "^1.63.0",
     "draco3dgltf": "^1.5.7",
+    "fbx2gltf": "^0.9.7-p1",
     "meshoptimizer": "^1.2.0",
     "obj2gltf": "^3.2.0",
     "sharp": "^0.35.4",

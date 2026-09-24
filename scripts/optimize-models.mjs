@@ -190,7 +190,10 @@ async function main() {
     const before = countTriangles(doc);
     const beforeBytes = fs.statSync(inPath).size;
 
-    await doc.transform(weld(), dedup());
+    // keepUniqueNames matters for merged multi-part scans: the eyeballs, teeth
+    // and lashes carry identical materials, and collapsing them would take the
+    // per-part names the viewer's visibility switches are keyed on.
+    await doc.transform(weld(), dedup({ keepUniqueNames: true }));
 
     // weld() matches on every attribute, so a mesh carrying per-face normals —
     // which photogrammetry output usually does — welds nothing: each triangle

@@ -81,6 +81,39 @@ model-viewer {
   line-height: 1.5;
 }
 
+.part-bar {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 68px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 12px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.part-bar[hidden] { display: none; }
+.part-bar::-webkit-scrollbar { display: none; }
+
+.part-bar button {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 14px;
+  border: none;
+  background: rgba(255,255,255,.08);
+  color: #777;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.part-bar button.on {
+  background: rgba(255,255,255,.22);
+  color: #fff;
+}
+
 .layer-bar {
   position: fixed;
   bottom: env(safe-area-inset-bottom, 0);

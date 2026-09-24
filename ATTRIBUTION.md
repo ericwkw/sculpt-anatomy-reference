@@ -67,23 +67,31 @@ the realism is in the albedo and normal maps, not the mesh.
 The download is a 2 GB zip, mostly a ZBrush file and 8K TGA maps that this project does
 not need. Take these into `models-raw/head-scan/`:
 
-- `OBJ/Head.obj`
-- `OBJ/Realtime Eyeball Left.obj` and `Realtime Eyeball Right.obj`
-- `Textures/JPG/Face/Face_Albedo.jpg` and `Face_Normal.jpg`
-- `Textures/JPG/Eyes/Eyes_Balls_Diffuse.jpg`
+- `OBJ/` — `Head.obj`, `Realtime Eyeball Left.obj`, `Realtime Eyeball Right.obj`,
+  `Eye Wet.obj`, `Brows.obj`, `Lashes.obj`
+- `FBX/` — `Teeth.fbx` and `Tongue.fbx` (there are no OBJ versions of these)
+- `Textures/JPG/Face/` — `Face_Albedo.jpg`, `Face_Normal.jpg`
+- `Textures/JPG/Eyes/Eyes_Balls_Diffuse.jpg`, `Textures/JPG/Masks/Eye_Wet.jpg`
+- `Textures/JPG/Mouth/` — `Teeth_diffuse.jpg`, `Tongue_Diffuse.jpg`
 
 The archive ships no `.mtl` files even though every OBJ references one, so the three in
 `models-raw/head-scan/` are written by hand. Keep them.
 
-The head and both eyeballs are separate meshes, so they are merged into one file before
-the optimizer runs:
+All eight are separate meshes, merged into one file before the optimizer runs:
 
 ```sh
-node scripts/merge-obj.mjs models-raw/head-scan-female.glb models-raw/head-scan/*.obj
+node scripts/merge-parts.mjs models-raw/head-scan-female.glb \
+  models-raw/head-scan/*.obj models-raw/head-scan/*.fbx
 ```
 
-Teeth, tongue, brows and lashes are also in the archive and are left out — hair
-reconstructs badly and is noise for sculpting reference.
+Each part gets its own visibility switch in the viewer, so brows, lashes, teeth and
+tongue can be turned off when they get in the way. Brows and lashes alone are 248k of
+the 302k triangles.
+
+`models-raw/head-scan/parts.json` supplies material data the source files do not carry:
+`Brows.obj` and `Lashes.obj` declare no material at all, and the FBX parts reference
+textures by paths that do not survive export. Keep it alongside the hand-written `.mtl`
+files.
 
 ## Écorché casts — scanned sculpture
 
