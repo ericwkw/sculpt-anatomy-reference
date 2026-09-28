@@ -1,0 +1,53 @@
+name: Deploy to GitHub Pages
+
+# Publishes the app SHELL only — public/models/ is gitignored, so this
+# workflow's checkout never has any .glb files to include. Every layer shows
+# as "not downloaded" to a visitor, same as a fresh local clone before running
+# npm run optimize. See ATTRIBUTION.md and README.md for why the models
+# themselves stay out of git (several are personal-use-only, and none of them
+# belong in a public deploy regardless of licence).
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # GitHub Pages project sites are served from /<repo-name>/, not the
+      # domain root — Vite needs to know that at build time to prefix its own
+      # asset references. Runtime paths (model fetches, the service worker)
+      # are handled separately in src/main.js via import.meta.env.BASE_URL,
+      # which this --base flag also sets.
+      - run: npm run build -- --base=/${{ github.event.repository.name }}/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

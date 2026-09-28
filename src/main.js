@@ -1,7 +1,25 @@
 import { MODELS, listCredits } from "./models.js";
 import { saveSnapshot, getAllSnapshots, deleteSnapshot } from "./gallery-store.js";
 
+// Every path in the model registry, and everywhere in this file, is written
+// root-relative ("/models/x.glb") because that is what the studio server and
+// local dev both serve from — the site root. A GitHub Pages deploy is a
+// project site served from a subpath (/<repo-name>/), which Vite's own asset
+// pipeline handles for anything it recognises as a reference (index.html's
+// script/link tags, bundled imports) but cannot for a runtime string built at
+// fetch- or assignment-time. import.meta.env.BASE_URL is '/' locally and
+// '/<repo-name>/' on Pages (set via `vite build --base`), so every actual
+// network request or viewer.src assignment resolves through this first.
+// Registry values and application state stay canonical/unprefixed throughout
+// — only the point of use resolves them — so a comparison like
+// `viewer.src !== targetSrc` stays correct as long as both sides go through it.
+const resolve = (path) => import.meta.env.BASE_URL + path.replace(/^\//, "");
+
 const viewer = document.getElementById("viewer");
+// Set here rather than as a static index.html attribute, for the same reason
+// every path above goes through resolve(): a hardcoded "/studio.hdr" would
+// resolve against the domain root on a Pages subpath deploy, not the site.
+viewer.setAttribute("environment-image", resolve("/studio.hdr"));
 const noModel = document.getElementById("no-model");
 const modelSelect = document.getElementById("model-select");
 const layerBar = document.getElementById("layer-bar");
@@ -30,7 +48,7 @@ let currentLayer = currentModel?.layers[0];
  * worth keeping gets a registry entry with its attribution.
  */
 async function discoverUnsorted() {
-  const files = await fetch("/models/manifest.json")
+  const files = await fetch(resolve("/models/manifest.json"))
     .then((r) => (r.ok ? r.json() : []))
     .catch(() => []);
 
@@ -71,7 +89,7 @@ async function checkAvailability(model) {
     model.layers
       .filter((l) => !available.has(l.src))
       .map(async (l) => {
-        available.set(l.src, await fileExists(l.src));
+        available.set(l.src, await fileExists(resolve(l.src)));
       })
   );
 }
@@ -131,7 +149,7 @@ function setLayer(layer) {
     return;
   }
   noModel.hidden = true;
-  viewer.src = layer.src;
+  viewer.src = resolve(layer.src);
   renderLayerBar();
 }
 
@@ -296,7 +314,7 @@ function updateRenderModeButton() {
 // leaving it means changing viewer.src — everything else is a same-geometry
 // recolour handled by applyMaterialStyle().
 function applyMode() {
-  const targetSrc = renderMode === "planar" ? planarSrcForCurrentLayer : currentLayer.src;
+  const targetSrc = resolve(renderMode === "planar" ? planarSrcForCurrentLayer : currentLayer.src);
   if (viewer.src !== targetSrc) {
     modeSwitchInProgress = true;
     viewer.src = targetSrc;
@@ -347,7 +365,7 @@ viewer.addEventListener("load", () => {
     // requests racing it for the same origin's limited connections. The
     // planar button simply stays disabled for the moment this check takes.
     const layerAtLoadTime = currentLayer;
-    fileExists(planarPathFor(layerAtLoadTime.src)).then((ok) => {
+    fileExists(resolve(planarPathFor(layerAtLoadTime.src))).then((ok) => {
       if (currentLayer !== layerAtLoadTime) return; // layer changed meanwhile
       planarSrcForCurrentLayer = ok ? planarPathFor(layerAtLoadTime.src) : null;
       updateRenderModeButton();
@@ -443,6 +461,6 @@ setModel(currentModel.id);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker.register(resolve("/sw.js")).catch(() => {});
   });
 }
