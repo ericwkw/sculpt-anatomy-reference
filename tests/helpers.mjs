@@ -6,21 +6,35 @@ const fixtures = {};
  * Serve a stand-in .glb for every model request. Paths listed in `missing` get a
  * 404 instead, which is how the unavailable-layer states are exercised, and
  * `textured` serves a model carrying a base colour texture.
+ *
+ * The planar subfolder 404s by default. The broad route pattern below would
+ * otherwise also match it and serve the same fixture, making every layer look
+ * like it has a planar companion whether or not the test cares — which is
+ * exactly what broke three pre-existing tests the first time this was added:
+ * their render-mode assertions assumed a two-mode Skin/Clay cycle, and each
+ * silently gained a spurious third "Planes" option. Pass `planar: true` to
+ * opt in for tests that specifically exercise the planar mode.
  */
-export async function stubModels(page, { missing = [], textured = false, parts = [] } = {}) {
+export async function stubModels(page, { missing = [], textured = false, parts = [], planar = false } = {}) {
   const key = `${textured ? 'textured' : 'plain'}:${parts.join('+')}`;
   fixtures[key] ??= await makeFixtureGlb({ textured, parts });
   const fixture = fixtures[key];
+  // A real make-planar.mjs companion has been merged onto one unified,
+  // untextured material — never the same multi-part file re-served, or a test
+  // could pass while the app fails to merge parts away, exactly the bug this
+  // option exists to guard against.
+  fixtures.planar ??= await makeFixtureGlb();
   await page.route('**/models/**', async (route) => {
     const url = new URL(route.request().url());
-    if (missing.some((name) => url.pathname.endsWith(name))) {
+    const isPlanarPath = url.pathname.includes('/models/planar/');
+    if (missing.some((name) => url.pathname.endsWith(name)) || (isPlanarPath && !planar)) {
       await route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' });
       return;
     }
     await route.fulfill({
       status: 200,
       contentType: 'model/gltf-binary',
-      body: fixture,
+      body: isPlanarPath ? fixtures.planar : fixture,
     });
   });
 }

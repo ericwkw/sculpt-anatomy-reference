@@ -158,6 +158,52 @@ test.describe('clay and skin render modes', () => {
     await expect(toggle).toHaveText('Skin');
     expect(await textureAttached(page)).toBe(true);
   });
+
+  test('planes never appears without a generated companion', async ({ page }) => {
+    // stubModels() 404s /models/planar/** by default specifically so this can
+    // be asserted rather than assumed.
+    await stubModels(page, { textured: true });
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    const toggle = page.locator('#render-mode-btn');
+    await toggle.click();
+    await expect(toggle).not.toHaveText('Planes');
+    await toggle.click();
+    await expect(toggle).not.toHaveText('Planes');
+  });
+
+  test('a planar companion adds a third mode and merges parts away', async ({ page }) => {
+    // The regression this guards: switching into planar mode left the
+    // part-visibility bar showing stale buttons from the pre-planar model —
+    // including one for a part that does not exist in the merged planar
+    // geometry at all, directly contradicting the point of that mode.
+    await stubModels(page, { textured: true, parts: ['Head', 'Eyes'], planar: true });
+    await page.goto('/');
+    await viewerLoaded(page);
+
+    const toggle = page.locator('#render-mode-btn');
+    const bar = page.locator('#part-bar');
+    await expect(toggle).toHaveText('Skin');
+    await expect(bar.locator('button')).toHaveText(['Head', 'Eyes']);
+
+    await toggle.click();
+    await expect(toggle).toHaveText('Clay');
+    await expect(bar.locator('button')).toHaveText(['Head', 'Eyes']);
+
+    await toggle.click();
+    await viewerLoaded(page);
+    await expect(toggle).toHaveText('Planes');
+    await expect(bar).toBeHidden();
+    await expect(bar.locator('button')).toHaveCount(0);
+
+    // Cycling back must restore the real parts, not leave the bar empty.
+    await toggle.click();
+    await viewerLoaded(page);
+    await expect(toggle).toHaveText('Skin');
+    await expect(bar).toBeVisible();
+    await expect(bar.locator('button')).toHaveText(['Head', 'Eyes']);
+  });
 });
 
 test.describe('part visibility', () => {

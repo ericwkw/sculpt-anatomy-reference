@@ -120,6 +120,51 @@ Clay mode detaches the base colour texture rather than just tinting it — `base
 multiplies a texture instead of replacing it, so a textured model stays textured until
 the texture itself is removed.
 
+## Planar clay studies
+
+```sh
+npm run planar                    # 500-triangle budget for every model in public/models/
+npm run planar -- --budget 800    # more planes, closer to the source shape
+```
+
+Writes a heavily-simplified, flat-shaded companion for every optimized model into
+`public/models/planar/` — the way a sculptor blocks in a head with a few large cut
+planes before any surface detail exists. Cycle the topbar mode button (Skin → Clay →
+Planes) to switch a layer to its companion, when one has been generated; the button
+skips Planes entirely for a layer that has none.
+
+Two things make a mesh read as cut planes rather than a shrunk version of the original:
+an aggressive triangle target, and flat (per-face) normals instead of smooth ones —
+smooth normals are what make a decimated mesh still look "round". Reduction itself uses
+meshoptimizer's `simplifySloppy`, a voxel-style reducer built for "hit this triangle
+count, fidelity is not the point" — ordinary edge-collapse simplification (the right
+tool in `npm run optimize`, which wants to stay faithful to a budget) applies its target
+per PRIMITIVE independently, and stalled at 35,714 triangles against a budget of 500 on
+a 26-part scan no matter how loose its error tolerance went.
+
+Getting a merged multi-part scan through this pipeline surfaced the most serious bug in
+the project: every part lives in its own Node, and a Node's transform is what places
+that part correctly in the scene — reading a mesh's POSITION data directly, as the
+reduction has to, is that part's own LOCAL space, unrelated to any other part's. Every
+node's world matrix is baked into its mesh before parts are combined; skipping that step
+dumps every part on top of the scene origin instead of assembling them into one figure.
+`node transforms are baked in before parts are combined` in the unit tests exists to
+catch a regression back to that.
+
+The transform also has to run after dequantizing: `npm run optimize`'s output is
+quantized to 16-bit integers, and each part typically carries its own independent
+quantization range, so concatenating raw quantized integers across parts is invalid in
+the same way skipping the node-transform bake is — both silently discard the one thing
+that keeps separately-authored parts aligned into a single coherent object.
+
+```sh
+node --test tests/make-planar.test.mjs    # unit tests for the reduction math itself
+```
+
+These run against in-memory fixtures with Node's built-in test runner rather than
+Playwright, since the thing being checked — triangle counts, face-normal correctness,
+node-transform baking — is geometry math, not anything that needs a real browser.
+
 ## Tests
 
 ```sh
@@ -140,7 +185,8 @@ returning 404 for specific filenames.
 
 Covered: pointer reaches the viewer, horizontal and vertical drag orbit, vertical drag
 does not scroll the page, touch drag, pinch zoom, layer switching, snapshot round trip,
-disabled layers for missing files, every model carrying a visible credit, and the
+disabled layers for missing files, every model carrying a visible credit, cycling
+Skin/Clay/Planes and the part-visibility bar staying correct across that cycle, and the
 topbar and layer bar staying on screen and tappable at phone size.
 
 Not covered: real iOS Safari. Chromium's touch emulation is close but not identical —
@@ -156,10 +202,13 @@ check gestures on the actual phone before trusting them.
 | `scripts/optimize-models.mjs` | Decimates raw downloads to a phone-friendly budget |
 | `scripts/make-studio-hdr.mjs` | Generates the studio lighting environment |
 | `scripts/merge-parts.mjs` | Combines multi-part OBJ/FBX scans into one `.glb` |
+| `scripts/make-planar.mjs` | Generates the planar clay study companions |
 | `tests/interaction.spec.mjs` | Playwright interaction and regression tests |
+| `tests/make-planar.test.mjs` | Unit tests for the planar reduction math |
 | `tests/helpers.mjs` | Model stubbing, real touch and pinch input via CDP |
 | `models-raw/` | Your untouched downloads (gitignored) |
 | `public/models/` | Optimized `.glb` files the app loads (gitignored) |
+| `public/models/planar/` | Generated planar clay study companions (gitignored) |
 | `ATTRIBUTION.md` | Model sources and licence credits — keep in sync |
 
 ## Licences

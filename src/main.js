@@ -53,6 +53,15 @@ async function discoverUnsorted() {
   });
 }
 
+// Vite's dev server answers unknown paths with the index page rather than a
+// 404, so a 200 alone does not mean the file is there — shared by the
+// missing-layer check below and the planar-companion check further down.
+async function fileExists(url) {
+  return fetch(url, { method: "HEAD" })
+    .then((r) => r.ok && !(r.headers.get("content-type") ?? "").includes("text/html"))
+    .catch(() => false);
+}
+
 // Layers whose .glb has not been downloaded yet are shown disabled rather than
 // silently failing to load. See ATTRIBUTION.md for what each file should be.
 const available = new Map();
@@ -62,12 +71,7 @@ async function checkAvailability(model) {
     model.layers
       .filter((l) => !available.has(l.src))
       .map(async (l) => {
-        // Vite's dev server answers unknown paths with the index page rather than
-        // a 404, so a 200 alone does not mean the .glb is there.
-        const ok = await fetch(l.src, { method: "HEAD" })
-          .then((r) => r.ok && !(r.headers.get("content-type") ?? "").includes("text/html"))
-          .catch(() => false);
-        available.set(l.src, ok);
+        available.set(l.src, await fileExists(l.src));
       })
   );
 }
@@ -98,15 +102,36 @@ function showMissing(layer) {
   noModel.hidden = false;
 }
 
+// Where the planar companion for a layer would live, if make-planar.mjs has
+// been run for it. A subfolder rather than a filename suffix, matching how
+// models-raw/head-scan/ stays invisible to the optimizer's own directory scan.
+const planarPathFor = (src) => src.replace("/models/", "/models/planar/");
+
+// The planar companion for whichever layer is on screen right now, or null if
+// none was generated yet, or the check has not resolved yet. The button just
+// stays disabled until it has — see the note in the 'load' handler below on
+// why this check happens after the model itself finishes loading rather than
+// alongside it.
+let planarSrcForCurrentLayer = null;
+
+// True only while a mode-cycle click is swapping the viewer's src to or from
+// the planar companion. The 'load' event fires for that swap exactly as it
+// does for a genuine layer change, and the two need different handling: a
+// fresh layer resets to its own default look, but a mode swap must preserve
+// the mode the user just chose rather than stomping it back to that default.
+let modeSwitchInProgress = false;
+
 function setLayer(layer) {
   currentLayer = layer;
+  planarSrcForCurrentLayer = null;
   if (available.get(layer.src) === false) {
     viewer.removeAttribute("src");
     showMissing(layer);
-  } else {
-    noModel.hidden = true;
-    viewer.src = layer.src;
+    renderLayerBar();
+    return;
   }
+  noModel.hidden = true;
+  viewer.src = layer.src;
   renderLayerBar();
 }
 
@@ -124,6 +149,8 @@ async function setModel(id) {
 // real skin, and that is worth seeing, so the render mode is switchable.
 const CLAY = [0.66, 0.62, 0.58, 1];
 
+// 'material' (the model's own texture), 'clay', or 'planar' (a swap to the
+// make-planar.mjs companion geometry, when one exists for this layer).
 let renderMode = "clay";
 let authored = [];
 
@@ -142,6 +169,14 @@ function captureAuthored() {
 }
 
 const hasTexture = () => authored.some((m) => m.baseColorTexture);
+
+// Whether the LAYER — not whatever happens to be on screen right now — has a
+// texture. Set only when a genuine layer load happens, below. availableModes()
+// must not call hasTexture() directly for this: the planar companion is
+// deliberately textureless, so while it is on screen hasTexture() reports
+// false and would silently drop "Skin" from the cycle — the exact bug that
+// made cycling past Planes land back on Clay instead of wrapping to Skin.
+let currentLayerHasTexture = false;
 
 /**
  * Per-part visibility, for merged scans.
@@ -211,47 +246,114 @@ partBar.addEventListener("click", (e) => {
   renderPartBar();
 });
 
-function applyRenderMode() {
+// Applies clay/material colouring to whatever geometry is currently loaded.
+// Meaningless for the planar companion — it has no texture and is already
+// baked grey by make-planar.mjs — but harmless to run anyway, which keeps the
+// caller from needing a special case for that mode.
+function applyMaterialStyle() {
   const materials = viewer.model?.materials ?? [];
   materials.forEach((material, i) => {
     const pbr = material.pbrMetallicRoughness;
     const original = authored[i];
-    if (renderMode === "clay") {
+    if (renderMode === "material" && original?.baseColorTexture) {
+      pbr.setBaseColorFactor(original.baseColorFactor);
+      pbr.setMetallicFactor(original.metallicFactor);
+      pbr.setRoughnessFactor(original.roughnessFactor);
+      pbr.baseColorTexture.setTexture(original.baseColorTexture);
+    } else {
       pbr.setBaseColorFactor(CLAY);
       pbr.setMetallicFactor(0);
       pbr.setRoughnessFactor(0.9);
       // baseColorFactor multiplies the texture rather than replacing it, so a
       // textured model stays textured until the texture itself is detached.
       if (original?.baseColorTexture) pbr.baseColorTexture.setTexture(null);
-    } else if (original) {
-      pbr.setBaseColorFactor(original.baseColorFactor);
-      pbr.setMetallicFactor(original.metallicFactor);
-      pbr.setRoughnessFactor(original.roughnessFactor);
-      if (original.baseColorTexture) pbr.baseColorTexture.setTexture(original.baseColorTexture);
     }
   });
-  renderModeBtn.textContent = renderMode === "clay" ? "Clay" : "Skin";
-  renderModeBtn.disabled = !hasTexture() && renderMode === "clay";
-  // Both modes rewrite baseColorFactor, which carries the alpha that hides a
-  // part, so visibility has to be reasserted afterwards.
+  // Both branches rewrite baseColorFactor, which carries the alpha that hides
+  // a part, so visibility has to be reasserted afterwards.
   applyPartVisibility();
 }
 
+const MODE_LABELS = { material: "Skin", clay: "Clay", planar: "Planes" };
+
+// Which of the three modes make sense for whatever is currently loaded: skin
+// only if there is a texture to show, planes only if make-planar.mjs has been
+// run for this layer. Clay is always available as the fallback.
+function availableModes() {
+  const modes = [];
+  if (currentLayerHasTexture) modes.push("material");
+  modes.push("clay");
+  if (planarSrcForCurrentLayer) modes.push("planar");
+  return modes;
+}
+
+function updateRenderModeButton() {
+  renderModeBtn.textContent = MODE_LABELS[renderMode];
+  renderModeBtn.disabled = availableModes().length < 2;
+}
+
+// Planar is a different geometry file, not a material tweak, so entering or
+// leaving it means changing viewer.src — everything else is a same-geometry
+// recolour handled by applyMaterialStyle().
+function applyMode() {
+  const targetSrc = renderMode === "planar" ? planarSrcForCurrentLayer : currentLayer.src;
+  if (viewer.src !== targetSrc) {
+    modeSwitchInProgress = true;
+    viewer.src = targetSrc;
+  } else {
+    applyMaterialStyle();
+  }
+  updateRenderModeButton();
+}
+
 renderModeBtn.addEventListener("click", () => {
-  renderMode = renderMode === "clay" ? "material" : "clay";
-  applyRenderMode();
+  const modes = availableModes();
+  const next = modes[(modes.indexOf(renderMode) + 1) % modes.length];
+  renderMode = next;
+  applyMode();
 });
 
 viewer.addEventListener("load", () => {
   noModel.hidden = true;
   captureAuthored();
-  // A scan's own skin is the reason to load it; an untextured anatomy model has
-  // nothing to show but clay.
-  renderMode = hasTexture() ? "material" : "clay";
-  applyRenderMode();
-  // Visibility choices are per model, not carried between them.
-  hidden.clear();
-  renderPartBar();
+  if (modeSwitchInProgress) {
+    // The user just chose this mode; a fresh default would undo that choice,
+    // and their part-visibility choices should survive a mode switch too. The
+    // button bar itself still needs rebuilding, though: switching into planar
+    // mode merges everything into one blocked mass with no separately-hideable
+    // parts at all, so which buttons even exist can change with the src even
+    // though which of them are hidden does not.
+    modeSwitchInProgress = false;
+    applyMaterialStyle();
+    renderPartBar();
+  } else {
+    // A genuine layer/model change. A scan's own skin is the reason to load
+    // it; an untextured anatomy model has nothing to show but clay. Planes is
+    // opt-in and never the default, the same way part visibility resets below
+    // rather than carrying over from whatever was open before. hidden must be
+    // cleared before rebuilding the bar, or its buttons render against the
+    // previous layer's hidden state for one frame.
+    currentLayerHasTexture = hasTexture();
+    renderMode = currentLayerHasTexture ? "material" : "clay";
+    applyMaterialStyle();
+    hidden.clear();
+    renderPartBar();
+
+    // Checking for a planar companion here, once the model itself has
+    // finished, rather than in setLayer before the model even starts: firing
+    // it alongside the other per-layer availability HEAD requests measurably
+    // slowed the actual model fetch down on Vite's dev server — a multi-MB
+    // model that loads in ~5s in isolation took over a minute with four HEAD
+    // requests racing it for the same origin's limited connections. The
+    // planar button simply stays disabled for the moment this check takes.
+    const layerAtLoadTime = currentLayer;
+    fileExists(planarPathFor(layerAtLoadTime.src)).then((ok) => {
+      if (currentLayer !== layerAtLoadTime) return; // layer changed meanwhile
+      planarSrcForCurrentLayer = ok ? planarPathFor(layerAtLoadTime.src) : null;
+      updateRenderModeButton();
+    });
+  }
+  updateRenderModeButton();
   applyPartVisibility();
 });
 viewer.addEventListener("error", () => showMissing(currentLayer));
