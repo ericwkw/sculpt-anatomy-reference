@@ -17,3 +17,7 @@ public/models/planar/
 # Playwright
 test-results/
 playwright-report/
+
+# Personal capture photos — never commit or deploy. Only the folder's README is tracked.
+photos-raw/*
+!photos-raw/README.md
