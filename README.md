@@ -1,10 +1,17 @@
 # Sculpt Anatomy Reference
 
-A phone-friendly anatomy viewer for clay sculpting reference. Orbit a 3D model in the
-studio, toggle between muscle and bone layers, and snapshot angles you want to keep
-beside you while you work.
+A phone-friendly anatomy viewer for clay sculpting reference. Orbit a 3D model under a
+raking studio light, switch between layers (skin, muscle, bone, where a model has them),
+cycle Skin / Clay / Planes render modes, and snapshot angles you want to keep beside you
+while you work. The registry covers skulls, écorché heads, a photogrammetry head scan,
+and female figure casts.
 
 Installs to the iPhone Home Screen as a PWA. Saved snapshots stay on the device.
+
+The app ships with no 3D assets, so a fresh clone shows every layer as "not downloaded"
+until you add models (see [Adding models](#adding-models)). A public shell-only demo is
+deployed to GitHub Pages at <https://ericwkw.github.io/sculpt-anatomy-reference/> by
+`.github/workflows/deploy-pages.yml` on every push to `master`. It contains no models.
 
 ## Running it
 
@@ -41,6 +48,28 @@ point at home; on a shared or public network, unload it.
 The agent hardcodes absolute paths — the current Node binary (`~/.nvm/.../v23.9.0/bin/node`)
 and this project directory. Upgrading Node or moving or renaming the project breaks it
 until the plist is updated.
+
+### When the phone can't reach the Mac (Tailscale)
+
+Office and guest Wi-Fi often isolate clients, so the phone and Mac get addresses on the
+same subnet but cannot talk to each other. Symptom: the Mac's ARP entry for the phone
+stays `(incomplete)`, and both the `.local` name and the LAN IP time out on the phone
+while the server answers fine from the Mac itself. A Personal Hotspot avoids it, but
+Tailscale works on any network.
+
+1. Install Tailscale on the Mac and the iPhone and sign in to the **same** account on
+   both. iOS runs one VPN at a time, so switch off any other VPN profile first.
+2. On the phone, open **`http://<tailscale-ip>:4173/`** in Safari. The address is the
+   `100.x.y.z` shown for the Mac in the Tailscale app. It is stable per device, so it is
+   safe to install to the Home Screen from.
+3. The `<mac-name>.<tailnet>.ts.net` name only resolves with MagicDNS enabled in the
+   Tailscale admin console (DNS page) and "Use Tailscale DNS settings" on in the iOS
+   app. Use the exact name from the app, which may carry a `-1` suffix. If the name
+   fails, use the IP.
+
+`vite.config.js` already allows `.ts.net` hostnames. Tailscale addresses reach the
+server by IP, which Vite always accepts. A work VPN active on the Mac can compete with
+Tailscale for the default route; disconnect it if the phone still cannot connect.
 
 ## Adding models
 
@@ -112,9 +141,10 @@ in that script to change the setup.
 
 Most models render as matte clay: several arrive glossy or colour-coded and read as wet
 plastic under a directional key, and clay matches the medium being sculpted. A
-photogrammetry scan carries real skin though, so the topbar has a **Clay / Skin**
-toggle. It defaults to Skin for any model with a base colour texture and Clay for
-everything else, and is disabled when there is no texture to switch to.
+photogrammetry scan carries real skin though, so the topbar mode button switches between
+Skin and Clay. It defaults to Skin for any model with a base colour texture and Clay for
+everything else. The third mode, Planes, is covered under
+[Planar clay studies](#planar-clay-studies).
 
 Clay mode detaches the base colour texture rather than just tinting it — `baseColorFactor`
 multiplies a texture instead of replacing it, so a textured model stays textured until
@@ -158,7 +188,7 @@ the same way skipping the node-transform bake is — both silently discard the o
 that keeps separately-authored parts aligned into a single coherent object.
 
 ```sh
-node --test tests/make-planar.test.mjs    # unit tests for the reduction math itself
+npm run test:unit    # unit tests for the reduction math itself
 ```
 
 These run against in-memory fixtures with Node's built-in test runner rather than
@@ -168,8 +198,9 @@ node-transform baking — is geometry math, not anything that needs a real brows
 ## Tests
 
 ```sh
-npm test           # headless
+npm test           # Playwright, headless
 npm run test:ui    # Playwright's interactive runner
+npm run test:unit  # Node's built-in runner, geometry math only
 ```
 
 Playwright drives the real browser: actual mouse drags, actual touch events via CDP,
@@ -203,6 +234,7 @@ check gestures on the actual phone before trusting them.
 | `scripts/make-studio-hdr.mjs` | Generates the studio lighting environment |
 | `scripts/merge-parts.mjs` | Combines multi-part OBJ/FBX scans into one `.glb` |
 | `scripts/make-planar.mjs` | Generates the planar clay study companions |
+| `.github/workflows/deploy-pages.yml` | Builds and publishes the shell-only demo to GitHub Pages |
 | `tests/interaction.spec.mjs` | Playwright interaction and regression tests |
 | `tests/make-planar.test.mjs` | Unit tests for the planar reduction math |
 | `tests/helpers.mjs` | Model stubbing, real touch and pinch input via CDP |
