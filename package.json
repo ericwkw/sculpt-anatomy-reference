@@ -23,7 +23,7 @@
     "meshoptimizer": "^1.2.0",
     "obj2gltf": "^3.2.0",
     "sharp": "^0.35.4",
-    "vite": "^8.3.0"
+    "vite": "^8.3.3"
   },
   "dependencies": {
     "@google/model-viewer": "^4.3.1"
